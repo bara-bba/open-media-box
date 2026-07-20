@@ -171,6 +171,38 @@ def read_battery():
     return None
 
 
+def kodi_player_active():
+    """True if Kodi has an active audio/video player."""
+    r = kodi_rpc("Player.GetActivePlayers", {}, want_result=True)
+    return bool(r)
+
+
+def enforce_kodi_priority(pstate):
+    """Kodi has audio priority: the output is a shared dmix, so nothing
+    blocks anyone — but two sources would MIX. When Kodi playback starts,
+    bounce the music services so Spotify/AirPlay stop (the phone app just
+    shows itself paused). Restarting them while idle is a no-op."""
+    active = kodi_player_active()
+    if active and not pstate["active"]:
+        print("kodi playback started — stopping Spotify/AirPlay streams",
+              flush=True)
+        try:
+            subprocess.run(["systemctl", "restart",
+                            "raspotify", "shairport-sync"], timeout=20)
+            # Killing librespot mid-stream leaves the HDMI ring buffer
+            # looping its last samples (loud beep) until the next client
+            # opens the device. Flush it with a short burst of silence;
+            # harmlessly fails busy if Kodi already grabbed the device.
+            subprocess.run(["aplay", "-q", "-D", "plughw:CARD=vc4hdmi,DEV=0",
+                            "-t", "raw", "-f", "S16_LE", "-r", "48000",
+                            "-c", "2", "-d", "1", "/dev/zero"],
+                           stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=6)
+        except Exception as exc:                   # noqa: BLE001
+            print("priority bounce error:", exc, flush=True)
+    pstate["active"] = active
+
+
 def remote_connected():
     """True if the remote's BlueZ device object reports Connected."""
     try:
@@ -281,6 +313,7 @@ def main():
     # need_rearm starts True -> one re-arm cycle shortly after startup, so a
     # bridge restart always lands in a known-good notification state.
     rstate = {"connected": False, "down_polls": 0, "need_rearm": True}
+    pstate = {"active": False}
     last_batt = 0.0
     last_reconnect = 0.0
 
@@ -297,6 +330,7 @@ def main():
             m = get_mode()
             if m:
                 mstate["mode"] = m
+            enforce_kodi_priority(pstate)
 
         if state["held"] is not None:
             timeout = max(0.0, state["next_fire"] - time.monotonic())
