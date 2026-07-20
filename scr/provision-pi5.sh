@@ -23,13 +23,19 @@
 # =============================================================================
 set -euo pipefail
 
-USER_NAME="${SUDO_USER:-barbara}"
+# Load config from .env (copy .env.example -> .env and fill it in).
+# Looks next to this script and one level up (repo root).
+for _envf in "$(dirname "$0")/.env" "$(dirname "$0")/../.env"; do
+  if [ -f "$_envf" ]; then set -a; . "$_envf"; set +a; break; fi
+done
+
+USER_NAME="${SUDO_USER:-${SSH_USER:-pi}}"
 USER_HOME="$(getent passwd "$USER_NAME" | cut -d: -f6)"
 KODI_ADDONS="$USER_HOME/.kodi/addons"
 KODI_USERDATA="$USER_HOME/.kodi/userdata"
-WEB_USER="kodi"; WEB_PASS="kodi"        # Kodi web-remote credentials
-JELLYFIN_SERVER="https://jellyfin.barbarhub.com"
-SPOTIFY_NAME="open-media"; AIRPLAY_NAME="open-media"
+WEB_USER="${KODI_WEB_USER:-kodi}"; WEB_PASS="${KODI_WEB_PASS:-changeme}"
+JELLYFIN_SERVER="${JELLYFIN_URL:-https://jellyfin.example.com}"
+SPOTIFY_NAME="${DEVICE_NAME:-open-media}"; AIRPLAY_NAME="${DEVICE_NAME:-open-media}"
 
 say(){ echo -e "\n\033[1;36m== $* ==\033[0m"; }
 krpc(){ curl -s --user "$WEB_USER:$WEB_PASS" -H 'Content-Type: application/json' \
@@ -235,6 +241,9 @@ Description=Siri Remote (A2854) -> Kodi bridge
 After=bluetooth.service kodi.service network-online.target
 [Service]
 Type=simple
+Environment=REMOTE_MAC=${REMOTE_MAC:-AA:BB:CC:DD:EE:FF}
+Environment=KODI_WEB_USER=$WEB_USER
+Environment=KODI_WEB_PASS=$WEB_PASS
 ExecStart=/usr/bin/python3 $BR/kodi_siri_bridge.py
 Restart=always
 RestartSec=3
@@ -257,7 +266,7 @@ cat <<'DONE'
      http://<pi-ip>:8080     user: kodi   pass: kodi
 
  1) JELLYFIN:  open the Jellyfin add-on -> log in to your server
-    (https://jellyfin.barbarhub.com , or direct http://192.168.1.68:8096 to
+    ($JELLYFIN_URL , or direct $JELLYFIN_DIRECT to
     bypass the reverse proxy) -> "Add libraries" -> pick Movies/TV.
     (Set your DNS so the internal name resolves — see NETWORK note.)
     Then in the add-on's settings.xml (addon_data/plugin.video.jellyfin/):
@@ -266,15 +275,15 @@ cat <<'DONE'
       - maxBitrate: only needed on a weak box (Pi 3). On a Pi 5 leave it
         unlimited (23) to direct-play everything.
  2) YOUTUBE:   open the YouTube add-on -> sign in at google.com/device.
- 3) SIRI REMOTE: pair it, then edit the MAC in kodi_siri_bridge.py
-    (BATTERY_DEV) and restart kodi-siri-bridge.service:
+ 3) SIRI REMOTE: pair it, then put its MAC in .env (REMOTE_MAC), re-run
+    this script (or edit the service's Environment=REMOTE_MAC), and restart:
         cd ~/a2854-siri-remote-linux
         python3 a2854_pair.py --pair --seconds 100 --min-rssi -55
         # hold Back + Volume-Up on the remote, on top of the BT adapter
         sudo systemctl restart kodi-siri-bridge.service
 
- NETWORK: point DNS at your local resolver so jellyfin.barbarhub.com resolves,
-   e.g.:  sudo nmcli con mod <conn> ipv4.dns 192.168.1.72 ipv4.dns-priority -10
+ NETWORK: point DNS at your local resolver so $JELLYFIN_URL resolves,
+   e.g.:  sudo nmcli con mod <conn> ipv4.dns $LOCAL_DNS ipv4.dns-priority -10
           sudo nmcli con up <conn>
 
  PI 5 vs PI 3: on the Pi 5 the onboard WiFi/BT work, so you do NOT need the

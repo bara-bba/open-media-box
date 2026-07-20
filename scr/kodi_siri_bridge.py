@@ -62,13 +62,18 @@ REPEAT_INTERVAL = 0.12
 WIN_FULLSCREEN_VIDEO = 12005
 WIN_FULLSCREEN_OSD = 12901
 
-BATTERY_DEV = "/org/bluez/hci0/dev_E0_C3_EA_7B_A7_6F"
+# Remote MAC + Kodi web creds come from the environment (see .env / the
+# systemd unit's Environment= lines); the defaults are safe placeholders.
+REMOTE_MAC = os.environ.get("REMOTE_MAC", "AA:BB:CC:DD:EE:FF")
+BATTERY_DEV = "/org/bluez/hci0/dev_" + REMOTE_MAC.replace(":", "_")
 BATTERY_INTERVAL = 120
 BATTERY_LOW = 20
 MODE_INTERVAL = 1.0     # how often to re-check what's on screen
 
 KODI_URL = "http://localhost:8080/jsonrpc"
-KODI_AUTH = base64.b64encode(b"kodi:kodi").decode()
+KODI_AUTH = base64.b64encode(
+    f"{os.environ.get('KODI_WEB_USER', 'kodi')}:"
+    f"{os.environ.get('KODI_WEB_PASS', 'kodi')}".encode()).decode()
 
 HANDLE_RE = re.compile(r"Handle: (0x[0-9a-f]{4})")
 DATA_RE = re.compile(r"Data\[\d+\]: ([0-9a-f]+)")

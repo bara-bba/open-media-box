@@ -7,6 +7,10 @@ Siri Remote, the TV remote (HDMI-CEC), or a phone.
 This documents what was actually built. Design rationale + task list: [[plan]].
 Rebuild-on-a-new-Pi script: [`provision-pi5.sh`](scr/provision-pi5.sh) (+ [`kodi_siri_bridge.py`](scr/kodi_siri_bridge.py)).
 
+> **Config:** values shown as `<PLACEHOLDER>` (IPs, hostname, Wi-Fi SSID, Kodi
+> password, remote MAC) are your own — copy [`.env.example`](.env.example) to
+> `.env` (gitignored) and fill them in. The scripts read them from there.
+
 ---
 
 ## Hardware
@@ -22,8 +26,8 @@ Rebuild-on-a-new-Pi script: [`provision-pi5.sh`](scr/provision-pi5.sh) (+ [`kodi
 
 ## Access
 
-- **SSH:** `ssh barbara@192.168.1.74` (wired) / `192.168.1.75` (Wi-Fi). DHCP — reserve in the router if wanted. (Box currently runs Wi-Fi-only.)
-- **Kodi web/phone remote:** `http://<ip>:8080` — user `kodi`, password `kodi`.
+- **SSH:** `ssh <SSH_USER>@<PI_IP_ETH>` (wired) / `<PI_IP>` (Wi-Fi). DHCP — reserve in the router if wanted. (Box currently runs Wi-Fi-only.)
+- **Kodi web/phone remote:** `http://<ip>:8080` — user `<KODI_WEB_USER>`, password `<KODI_WEB_PASS>`.
 
 ---
 
@@ -31,7 +35,7 @@ Rebuild-on-a-new-Pi script: [`provision-pi5.sh`](scr/provision-pi5.sh) (+ [`kodi
 
 ### Base / network
 - Raspberry Pi OS Lite / **Debian 13 (trixie)**, aarch64, kernel 6.18.
-- Wi-Fi `BiFi` (auto-connect). **DNS `192.168.1.72`** primary so `jellyfin.barbarhub.com` resolves.
+- Wi-Fi `<WIFI_SSID>` (auto-connect). **DNS `<LOCAL_DNS>`** primary so `<JELLYFIN_HOST>` resolves.
 
 ### Kodi (frontend)
 - **Kodi 21.3 "Omega"**, headless on **GBM/DRM**, 1080p60. Autostarts via `kodi.service`; `getty@tty1` disabled. HDMI-CEC works (`cec0`).
@@ -40,11 +44,11 @@ Rebuild-on-a-new-Pi script: [`provision-pi5.sh`](scr/provision-pi5.sh) (+ [`kodi
 
 ### Jellyfin — `plugin.video.jellyfin` 2.1.0
 - Installed manually (repo URLs were dead → repointed to `kodi.jellyfin.org/py3`; deps hand-placed from the Kodi Omega mirror).
-- Server login: **`https://jellyfin.barbarhub.com`**, Add-on mode, libraries added via *Add libraries*.
+- Server login: **`https://<JELLYFIN_HOST>`**, Add-on mode, libraries added via *Add libraries*.
 - **⚠️ Playback gotchas (all fixed — keep these!):**
   1. **`syncDuringPlay = false`** — THE big one. With it on, the add-on scans the library *during* playback and crashes the video pipeline. Off = stable. (`~/.kodi/userdata/addon_data/plugin.video.jellyfin/settings.xml`)
   2. **`maxBitrate = 17` (20 Mbps)** — the Pi 3 can't decode 40+ Mbps REMUX; the cap makes the **server transcode** heavy files down (and downmix lossless audio). Lower to `6` (~4 Mbps/720p) if a title still struggles; raise/unlimited on a Pi 5.
-  3. The Jellyfin **reverse proxy (`openresty`) cuts large direct streams at ~20 MB.** The bitrate cap sidesteps this (transcode = small HLS segments). To *direct-play* big files, point the add-on at the **direct server `http://192.168.1.68:8096`** (bypasses the proxy) — best on a Pi 5.
+  3. The Jellyfin **reverse proxy (`openresty`) cuts large direct streams at ~20 MB.** The bitrate cap sidesteps this (transcode = small HLS segments). To *direct-play* big files, point the add-on at the **direct server `http://<JELLYFIN_HOST_IP>:8096`** (bypasses the proxy) — best on a Pi 5.
 
 ### YouTube — `plugin.video.youtube` 7.4.4
 - Installed with deps. Finish: sign in at **`google.com/device`**.
@@ -56,7 +60,7 @@ Rebuild-on-a-new-Pi script: [`provision-pi5.sh`](scr/provision-pi5.sh) (+ [`kodi
 - Always-on AirPlay **audio** as **"open-media"** (`_raop` :5000). No screen mirroring (Kodi owns the display). Config `/etc/shairport-sync.conf`.
 
 ### Siri Remote (A2854) — **working**
-- Paired over BT (public addr `E0:C3:EA:7B:A7:6F`). Buttons arrive as GATT notifications on handle `0x0039`; touchpad motion (`0x003d`) and Siri voice (`0x0036`) are ignored.
+- Paired over BT (public addr `<REMOTE_MAC>`). Buttons arrive as GATT notifications on handle `0x0039`; touchpad motion (`0x003d`) and Siri voice (`0x0036`) are ignored.
 - **Bridge:** [`kodi_siri_bridge.py`](scr/kodi_siri_bridge.py) → `~/a2854-siri-remote-linux/`, run by `kodi-siri-bridge.service` (root). It reads `btmon` and drives Kodi via JSON-RPC, and is **context-aware** (menu navigation vs. video seek/OSD). Also polls remote **battery** into `Window(Home).Property(SiriRemoteBattery)` + low-battery popup.
 - Pairing tool `a2854_pair.py` was patched (auto-confirm passkey; accept public addresses; skip `sudo -v`).
 
@@ -93,4 +97,4 @@ sudo modprobe -r btusb btrtl && sudo modprobe btusb    # revive dongle manually
 
 ## Remaining / optional
 - [ ] Fan final mount · 3D case print
-- [ ] (Pi 5) restore full bitrate + point Jellyfin at `192.168.1.68:8096` direct
+- [ ] (Pi 5) restore full bitrate + point Jellyfin at `<JELLYFIN_HOST_IP>:8096` direct

@@ -104,11 +104,11 @@ Custom case to be designed from scratch in CAD. Material: **PETG** (better heat 
 - [x] Flash Raspberry Pi OS Lite to MicroSD ✅ 2026-07-18
 - [x] Connect WiFi dongle and configure network (headless setup via `wpa_supplicant`) ✅ 2026-07-18
 - [x] Install Kodi ✅ 2026-07-18
-- [x] Install Jellyfin for Kodi add-on + log in ✅ 2026-07-19 — installed, logged in, libraries synced. Playback fixes: **`syncDuringPlay=false`** (sync-during-play crashed video), `maxBitrate` cap 20Mbps → server transcodes heavy files, proxy cuts large streams (point at `192.168.1.68:8096` direct on Pi 5)
+- [x] Install Jellyfin for Kodi add-on + log in ✅ 2026-07-19 — installed, logged in, libraries synced. Playback fixes: **`syncDuringPlay=false`** (sync-during-play crashed video), `maxBitrate` cap 20Mbps → server transcodes heavy files, proxy cuts large streams (point at `<JELLYFIN_HOST_IP>:8096` direct on Pi 5)
 - [x] Install YouTube Kodi add-on ✅ 2026-07-18 — installed; **one-time sign-in pending** at `google.com/device`
 - [x] Install and configure Raspotify (Spotify Connect) ✅ 2026-07-18 — device name "open-media", HDMI out
 - [x] Install and configure shairport-sync (AirPlay **audio** receiver — UxPlay dropped, see note above) ✅ 2026-07-18 — advertises as "open-media"
-- [x] Pair Siri Remote via a2854-siri-remote-linux (`a2854_pair.py`) over BT USB dongle ✅ 2026-07-19 — paired (public addr `E0:C3:EA:…`); `bt-fix.service` brings the dongle up at boot (rfkill unblock + btusb reload). Pairing script patched (accept public addr, auto-confirm passkey, skip `sudo -v`)
+- [x] Pair Siri Remote via a2854-siri-remote-linux (`a2854_pair.py`) over BT USB dongle ✅ 2026-07-19 — paired (public addr `<REMOTE_MAC>`); `bt-fix.service` brings the dongle up at boot (rfkill unblock + btusb reload). Pairing script patched (accept public addr, auto-confirm passkey, skip `sudo -v`)
 - [x] Run a2854 bridge and map Siri Remote buttons to Kodi ✅ 2026-07-19 — `kodi-siri-bridge.service`; buttons on GATT handle `0x0039`; **context-aware** (menu navigate vs. video seek/OSD), hold-repeat, remote-battery indicator in the skin
 - [x] Connect Noctua NF-A4x10 5V (3-pin) fan ✅ 2026-07-19 — **Red → 5V (pin 4), Black → GND (pin 6)**, yellow (tacho) unused. Runs full speed
 - [x] Set Kodi to autostart on boot ✅ 2026-07-18 — `kodi.service` (GBM/DRM 1080p60, `getty@tty1` disabled)
