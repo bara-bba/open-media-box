@@ -5,7 +5,7 @@ Jellyfin / YouTube / Spotify (Connect) / AirPlay audio, controlled by an Apple
 Siri Remote, the TV remote (HDMI-CEC), or a phone.
 
 This documents what was actually built. Design rationale + task list: [[plan]].
-Rebuild-on-a-new-Pi script: [`provision-pi5.sh`](provision-pi5.sh) (+ [`kodi_siri_bridge.py`](kodi_siri_bridge.py)).
+Rebuild-on-a-new-Pi script: [`provision-pi5.sh`](scr/provision-pi5.sh) (+ [`kodi_siri_bridge.py`](scr/kodi_siri_bridge.py)).
 
 ---
 
@@ -57,7 +57,7 @@ Rebuild-on-a-new-Pi script: [`provision-pi5.sh`](provision-pi5.sh) (+ [`kodi_sir
 
 ### Siri Remote (A2854) — **working**
 - Paired over BT (public addr `E0:C3:EA:7B:A7:6F`). Buttons arrive as GATT notifications on handle `0x0039`; touchpad motion (`0x003d`) and Siri voice (`0x0036`) are ignored.
-- **Bridge:** [`kodi_siri_bridge.py`](kodi_siri_bridge.py) → `~/a2854-siri-remote-linux/`, run by `kodi-siri-bridge.service` (root). It reads `btmon` and drives Kodi via JSON-RPC, and is **context-aware** (menu navigation vs. video seek/OSD). Also polls remote **battery** into `Window(Home).Property(SiriRemoteBattery)` + low-battery popup.
+- **Bridge:** [`kodi_siri_bridge.py`](scr/kodi_siri_bridge.py) → `~/a2854-siri-remote-linux/`, run by `kodi-siri-bridge.service` (root). It reads `btmon` and drives Kodi via JSON-RPC, and is **context-aware** (menu navigation vs. video seek/OSD). Also polls remote **battery** into `Window(Home).Property(SiriRemoteBattery)` + low-battery popup.
 - Pairing tool `a2854_pair.py` was patched (auto-confirm passkey; accept public addresses; skip `sudo -v`).
 
 **Button map** — menus: d-pad navigate · centre select · Back back · ⏯ play/pause · vol ± · Menu→Home · Power→CEC TV on/off.  During video: **d-pad seeks**, **centre opens OSD**, **Back stops**, **⏯ pauses**.
