@@ -1,0 +1,11 @@
+# python
+__pycache__/
+*.pyc
+
+# backups / OneDrive conflict copies
+*.bak
+*-DESKTOP-*.md
+
+# OS noise
+Thumbs.db
+.DS_Store
