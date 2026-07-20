@@ -63,12 +63,33 @@ WIN_FULLSCREEN_VIDEO = 12005
 WIN_FULLSCREEN_OSD = 12901
 
 # Remote MAC + Kodi web creds come from the environment (see .env / the
-# systemd unit's Environment= lines); the defaults are safe placeholders.
-REMOTE_MAC = os.environ.get("REMOTE_MAC", "AA:BB:CC:DD:EE:FF")
+# systemd unit's Environment= lines). If REMOTE_MAC is unset or left at the
+# placeholder, the first *paired* Bluetooth device is used (this box pairs
+# only the Siri Remote).
+def _detect_remote_mac():
+    mac = os.environ.get("REMOTE_MAC", "")
+    if mac and mac != "AA:BB:CC:DD:EE:FF":
+        return mac
+    try:
+        out = subprocess.run(["bluetoothctl", "devices", "Paired"],
+                             capture_output=True, text=True, timeout=8).stdout
+        m = re.search(r"([0-9A-F]{2}(?::[0-9A-F]{2}){5})", out)
+        if m:
+            return m.group(1)
+    except Exception:                              # noqa: BLE001
+        pass
+    return "AA:BB:CC:DD:EE:FF"
+
+
+REMOTE_MAC = _detect_remote_mac()
 BATTERY_DEV = "/org/bluez/hci0/dev_" + REMOTE_MAC.replace(":", "_")
 BATTERY_INTERVAL = 120
 BATTERY_LOW = 20
 MODE_INTERVAL = 1.0     # how often to re-check what's on screen
+
+# Reconnect watchdog: if the remote drops (out of range / sleep), BlueZ does
+# not always chase it — actively retry the connection until it's back.
+RECONNECT_INTERVAL = 15   # seconds between connection checks / attempts
 
 KODI_URL = "http://localhost:8080/jsonrpc"
 KODI_AUTH = base64.b64encode(
@@ -150,6 +171,35 @@ def read_battery():
     return None
 
 
+def remote_connected():
+    """True if the remote's BlueZ device object reports Connected."""
+    try:
+        out = subprocess.run(
+            ["busctl", "get-property", "org.bluez", BATTERY_DEV,
+             "org.bluez.Device1", "Connected"],
+            capture_output=True, text=True, timeout=4).stdout.split()
+        return len(out) == 2 and out[1] == "true"
+    except Exception:                              # noqa: BLE001
+        return False
+
+
+def try_reconnect(rstate):
+    """Attempt to reconnect the remote if it dropped (range/sleep)."""
+    if remote_connected():
+        if not rstate["connected"]:
+            print(f"remote {REMOTE_MAC} reconnected", flush=True)
+        rstate["connected"] = True
+        return
+    if rstate["connected"]:
+        print(f"remote {REMOTE_MAC} disconnected — will retry", flush=True)
+    rstate["connected"] = False
+    try:
+        subprocess.run(["bluetoothctl", "connect", REMOTE_MAC],
+                       capture_output=True, text=True, timeout=10)
+    except Exception:                              # noqa: BLE001
+        pass
+
+
 def update_battery(bstate):
     pct = read_battery()
     if pct is None:
@@ -200,13 +250,18 @@ def main():
     state = {"held": None, "held_action": None, "next_fire": 0.0}
     bstate = {"warned": False}
     mstate = {"mode": "gui", "next": 0.0}
+    rstate = {"connected": True}
     last_batt = 0.0
+    last_reconnect = 0.0
 
     while True:
         now = time.monotonic()
         if now - last_batt >= BATTERY_INTERVAL:
             last_batt = now
             update_battery(bstate)
+        if now - last_reconnect >= RECONNECT_INTERVAL:
+            last_reconnect = now
+            try_reconnect(rstate)
         if now >= mstate["next"]:
             mstate["next"] = now + MODE_INTERVAL
             m = get_mode()
