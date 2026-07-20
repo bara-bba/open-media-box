@@ -183,16 +183,44 @@ def remote_connected():
         return False
 
 
+def cycle_connection():
+    """Force a clean disconnect/reconnect. After a range drop the bonded
+    remote often reconnects by itself into a 'zombie' state — Connected: yes
+    but its button notifications never resume. A forced cycle re-arms them."""
+    print(f"re-arming {REMOTE_MAC} (disconnect/reconnect cycle)", flush=True)
+    try:
+        subprocess.run(["bluetoothctl", "disconnect", REMOTE_MAC],
+                       capture_output=True, text=True, timeout=10)
+    except Exception:                              # noqa: BLE001
+        pass
+    time.sleep(3)
+    try:
+        subprocess.run(["bluetoothctl", "connect", REMOTE_MAC],
+                       capture_output=True, text=True, timeout=12)
+    except Exception:                              # noqa: BLE001
+        pass
+
+
 def try_reconnect(rstate):
-    """Attempt to reconnect the remote if it dropped (range/sleep)."""
-    if remote_connected():
+    """Watchdog: chase the remote when it drops, and re-arm the link after
+    it comes back from a real absence (>= 2 polls, i.e. ~30s) or at startup
+    (need_rearm starts True) — that's when the zombie state appears."""
+    up = remote_connected()
+    if up:
         if not rstate["connected"]:
             print(f"remote {REMOTE_MAC} reconnected", flush=True)
+            if rstate["need_rearm"]:
+                rstate["need_rearm"] = False
+                cycle_connection()
         rstate["connected"] = True
+        rstate["down_polls"] = 0
         return
+    rstate["down_polls"] += 1
     if rstate["connected"]:
         print(f"remote {REMOTE_MAC} disconnected — will retry", flush=True)
     rstate["connected"] = False
+    if rstate["down_polls"] >= 2:      # real absence, not our own brief cycle
+        rstate["need_rearm"] = True
     try:
         subprocess.run(["bluetoothctl", "connect", REMOTE_MAC],
                        capture_output=True, text=True, timeout=10)
@@ -250,7 +278,9 @@ def main():
     state = {"held": None, "held_action": None, "next_fire": 0.0}
     bstate = {"warned": False}
     mstate = {"mode": "gui", "next": 0.0}
-    rstate = {"connected": True}
+    # need_rearm starts True -> one re-arm cycle shortly after startup, so a
+    # bridge restart always lands in a known-good notification state.
+    rstate = {"connected": False, "down_polls": 0, "need_rearm": True}
     last_batt = 0.0
     last_reconnect = 0.0
 
