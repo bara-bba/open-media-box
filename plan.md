@@ -74,6 +74,7 @@ Custom case to be designed from scratch in CAD. Material: **PETG** (better heat 
 ### Case requirements
 - Noctua NF-A4x10 40mm fan mount (5V, 3-pin)
 - HDMI, USB, microSD, and micro-USB port cutouts
+- **Arcade power button** — panel cutout (24mm or 30mm) on the front/top
 - Ventilation slots
 - Clean HTPC-style horizontal form factor
 
@@ -111,6 +112,7 @@ Custom case to be designed from scratch in CAD. Material: **PETG** (better heat 
 - [x] Pair Siri Remote via a2854-siri-remote-linux (`a2854_pair.py`) over BT USB dongle ✅ 2026-07-19 — paired (public addr `<REMOTE_MAC>`); `bt-fix.service` brings the dongle up at boot (rfkill unblock + btusb reload). Pairing script patched (accept public addr, auto-confirm passkey, skip `sudo -v`)
 - [x] Run a2854 bridge and map Siri Remote buttons to Kodi ✅ 2026-07-19 — `kodi-siri-bridge.service`; buttons on GATT handle `0x0039`; **context-aware** (menu navigate vs. video seek/OSD), hold-repeat, remote-battery indicator in the skin
 - [x] Connect Noctua NF-A4x10 5V (3-pin) fan ✅ 2026-07-19 — **Red → 5V (pin 4), Black → GND (pin 6)**, yellow (tacho) unused. Runs full speed
+- [ ] Wire arcade power button → **GPIO3 (pin 5) + GND (pin 9)** (momentary, no polarity); add **`dtoverlay=gpio-shutdown`** to `/boot/firmware/config.txt`. Then: press while off = boot, press while running = clean shutdown. (Optional: button LED → 5V so it lights when powered)
 - [x] Set Kodi to autostart on boot ✅ 2026-07-18 — `kodi.service` (GBM/DRM 1080p60, `getty@tty1` disabled)
 - [x] (Optional) Enable SSH for remote management ✅ 2026-07-18 — key-based login
 - [x] (Optional) Enable HDMI-CEC so TV remote also controls Kodi ✅ 2026-07-18 — `cec0` detected, works

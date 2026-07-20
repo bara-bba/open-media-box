@@ -22,7 +22,22 @@ Rebuild-on-a-new-Pi script: [`provision-pi5.sh`](scr/provision-pi5.sh) (+ [`kodi
 | Bluetooth | ASUS USB-BT500 (Realtek **RTL8761BU**) — onboard Pi BT is broken, disabled |
 | Storage / PSU | 32 GB microSD A2, 5 V 2.5 A micro-USB |
 | Cooling | Noctua NF-A4x10 5V (3-pin, non-PWM) 40 mm fan — Red→5V (pin 4), Black→GND (pin 6), yellow unused |
+| Power button | Arcade (momentary) switch — **GPIO3 (pin 5) + GND (pin 9)** |
 | Output | HDMI 1080p60 to TV |
+
+### Power button
+An arcade momentary button on **GPIO3 (pin 5)** and any **GND** (pin 9) acts as
+the power button once `dtoverlay=gpio-shutdown` is set in
+`/boot/firmware/config.txt`:
+- **Press while off (halted)** → boots the Pi (GPIO3 is the only wake-from-halt pin)
+- **Press while running** → clean shutdown
+
+```bash
+# enable the button (needs sudo), then reboot once
+echo 'dtoverlay=gpio-shutdown' | sudo tee -a /boot/firmware/config.txt
+```
+Wiring: 2 spade terminals → pin 5 and pin 9, no polarity. If the button has an
+LED, wire it to **5V (pin 2)** + GND so it lights whenever the Pi is powered.
 
 ## Access
 

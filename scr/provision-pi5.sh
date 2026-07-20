@@ -255,6 +255,11 @@ EOF
 systemctl daemon-reload
 systemctl enable kodi-siri-bridge.service   # starts working once the remote is paired
 
+# Arcade power button on GPIO3 (pin 5) + GND: press-while-off boots the Pi,
+# press-while-running does a clean shutdown. Takes effect after a reboot.
+CONFIG_TXT=/boot/firmware/config.txt
+grep -q '^dtoverlay=gpio-shutdown' "$CONFIG_TXT" || echo 'dtoverlay=gpio-shutdown' >> "$CONFIG_TXT"
+
 systemctl start kodi.service
 
 cat <<'DONE'
