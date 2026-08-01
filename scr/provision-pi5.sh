@@ -282,6 +282,23 @@ systemctl enable kodi-siri-bridge.service   # starts working once the remote is 
 CONFIG_TXT=/boot/firmware/config.txt
 grep -q '^dtoverlay=gpio-shutdown' "$CONFIG_TXT" || echo 'dtoverlay=gpio-shutdown' >> "$CONFIG_TXT"
 
+# Appliance-style boot: no rainbow test square, no scrolling kernel log, no
+# blinking console cursor — the box goes from black straight to Kodi's splash.
+grep -q '^disable_splash=1' "$CONFIG_TXT" || echo 'disable_splash=1' >> "$CONFIG_TXT"
+CMDLINE=/boot/firmware/cmdline.txt
+if [ -f "$CMDLINE" ]; then
+  python3 - "$CMDLINE" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read().strip()
+for flag in ("quiet", "loglevel=0", "logo.nologo",
+             "vt.global_cursor_default=0", "splash"):
+    if flag.split("=")[0] not in s:
+        s += " " + flag
+open(p, "w").write(s + "\n")
+PY
+fi
+
 systemctl start kodi.service
 
 cat <<DONE
