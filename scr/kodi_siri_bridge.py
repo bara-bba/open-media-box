@@ -229,6 +229,25 @@ def hdmi_alsa_device():
 MUSIC_SERVICES = ["raspotify", "shairport-sync"]
 
 
+def kick_kodi_audio():
+    """Force Kodi's AudioEngine to re-open its ALSA sink.
+
+    Re-applying the audio device setting makes Kodi tear down and re-init the
+    sink, which recovers it from a cached "no sink was returned" failure.
+    """
+    dev = kodi_rpc("Settings.GetSettingValue",
+                   {"setting": "audiooutput.audiodevice"}, want_result=True)
+    dev = (dev or {}).get("value")
+    if not dev:
+        return
+    alt = ("ALSA:@" if dev != "ALSA:@" else "ALSA:default")
+    kodi_rpc("Settings.SetSettingValue",
+             {"setting": "audiooutput.audiodevice", "value": alt})
+    time.sleep(0.6)
+    kodi_rpc("Settings.SetSettingValue",
+             {"setting": "audiooutput.audiodevice", "value": dev})
+
+
 def enforce_kodi_priority(pstate):
     """Kodi owns the HDMI output while it is playing.
 
@@ -254,6 +273,12 @@ def enforce_kodi_priority(pstate):
                             "-c", "2", "-d", "1", "/dev/zero"],
                            stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL, timeout=6)
+            # Kodi opens its sink as playback starts — i.e. while librespot
+            # may still hold the exclusive device. It caches that failure
+            # ("no sink was returned") and stays silent for the whole title
+            # even after the device frees up. Re-setting the audio device
+            # forces AudioEngine to re-init the sink now that it is free.
+            kick_kodi_audio()
         else:
             print("kodi idle — Spotify/AirPlay available again", flush=True)
             subprocess.run(["systemctl", "start", *MUSIC_SERVICES], timeout=20)
