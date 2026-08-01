@@ -226,29 +226,39 @@ def hdmi_alsa_device():
     return device
 
 
+MUSIC_SERVICES = ["raspotify", "shairport-sync"]
+
+
 def enforce_kodi_priority(pstate):
-    """Kodi has audio priority: the output is a shared dmix, so nothing
-    blocks anyone — but two sources would MIX. When Kodi playback starts,
-    bounce the music services so Spotify/AirPlay stop (the phone app just
-    shows itself paused). Restarting them while idle is a no-op."""
+    """Kodi owns the HDMI output while it is playing.
+
+    The device is exclusive, so whoever holds it wins. Restarting the music
+    services is not enough: librespot comes straight back up and re-grabs the
+    device before Kodi's sink opens, and Kodi then fails with "no sink was
+    returned" and stays silent. So: STOP them for the duration of playback and
+    only start them again once Kodi is idle.
+    """
     active = kodi_player_active()
-    if active and not pstate["active"]:
-        print("kodi playback started — stopping Spotify/AirPlay streams",
-              flush=True)
-        try:
-            subprocess.run(["systemctl", "restart",
-                            "raspotify", "shairport-sync"], timeout=20)
-            # Killing librespot mid-stream leaves the HDMI ring buffer
-            # looping its last samples (loud beep) until the next client
-            # opens the device. Flush it with a short burst of silence;
-            # harmlessly fails busy if Kodi already grabbed the device.
+    if active == pstate["active"]:
+        return
+    try:
+        if active:
+            print("kodi playback started — stopping Spotify/AirPlay",
+                  flush=True)
+            subprocess.run(["systemctl", "stop", *MUSIC_SERVICES], timeout=20)
+            # Killing librespot mid-stream leaves the HDMI ring buffer looping
+            # its last samples (loud beep) until the next client opens the
+            # device. Flush it with a short burst of silence.
             subprocess.run(["aplay", "-q", "-D", hdmi_alsa_device(),
                             "-t", "raw", "-f", "S16_LE", "-r", "48000",
                             "-c", "2", "-d", "1", "/dev/zero"],
                            stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL, timeout=6)
-        except Exception as exc:                   # noqa: BLE001
-            print("priority bounce error:", exc, flush=True)
+        else:
+            print("kodi idle — Spotify/AirPlay available again", flush=True)
+            subprocess.run(["systemctl", "start", *MUSIC_SERVICES], timeout=20)
+    except Exception as exc:                       # noqa: BLE001
+        print("priority switch error:", exc, flush=True)
     pstate["active"] = active
 
 
@@ -377,7 +387,14 @@ def main():
     # bond created moments earlier permanently breaks it (see try_reconnect).
     rstate = {"connected": False, "down_polls": 0, "need_rearm": False,
               "started_at": time.monotonic()}
-    pstate = {"active": False}
+    # Start from Kodi's real state, so a bridge restart mid-playback doesn't
+    # leave the music services stopped forever (or evict them needlessly).
+    pstate = {"active": kodi_player_active()}
+    if not pstate["active"]:
+        try:                                       # undo any stale stop
+            subprocess.run(["systemctl", "start", *MUSIC_SERVICES], timeout=20)
+        except Exception:                          # noqa: BLE001
+            pass
     last_batt = 0.0
     last_reconnect = 0.0
 
