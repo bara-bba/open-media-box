@@ -15,6 +15,7 @@ voice button (0x0036) are ignored.
 Run as root (btmon needs no sudo). Designed to run under systemd.
 """
 import base64
+import glob
 import json
 import os
 import pty
@@ -98,6 +99,8 @@ KODI_AUTH = base64.b64encode(
     f"{os.environ.get('KODI_WEB_USER', 'kodi')}:"
     f"{os.environ.get('KODI_WEB_PASS', 'kodi')}".encode()).decode()
 
+_hdmi_device_cache = []   # memoises hdmi_alsa_device()
+
 HANDLE_RE = re.compile(r"Handle: (0x[0-9a-f]{4})")
 DATA_RE = re.compile(r"Data\[\d+\]: ([0-9a-f]+)")
 
@@ -179,6 +182,50 @@ def kodi_player_active():
     return bool(r)
 
 
+def hdmi_alsa_device():
+    """ALSA device for the HDMI output, cached after the first lookup.
+
+    Pi 3/4 expose a single card named "vc4hdmi"; the Pi 5 has one per
+    micro-HDMI port ("vc4hdmi0"/"vc4hdmi1"), so the name can't be hardcoded.
+    Prefer a card whose ELD reports an attached display.
+    """
+    if _hdmi_device_cache:
+        return _hdmi_device_cache[0]
+    card = None
+    try:
+        for eld in sorted(glob.glob("/proc/asound/card*/eld*")):
+            try:
+                text = open(eld).read()
+            except OSError:
+                continue
+            name = ""
+            for line in text.splitlines():
+                if line.startswith("monitor_name"):
+                    name = line.split(None, 1)[1].strip() if len(
+                        line.split(None, 1)) > 1 else ""
+            if not name:
+                continue
+            idx = re.search(r"/card(\d+)/", eld)
+            if idx:
+                link = f"/proc/asound/card{idx.group(1)}/id"
+                try:
+                    card = open(link).read().strip()
+                    break
+                except OSError:
+                    pass
+        if not card:                                # no display info: first vc4
+            for idf in sorted(glob.glob("/proc/asound/card*/id")):
+                cid = open(idf).read().strip()
+                if cid.startswith("vc4hdmi"):
+                    card = cid
+                    break
+    except Exception:                               # noqa: BLE001
+        pass
+    device = f"plughw:CARD={card or 'vc4hdmi'},DEV=0"
+    _hdmi_device_cache.append(device)
+    return device
+
+
 def enforce_kodi_priority(pstate):
     """Kodi has audio priority: the output is a shared dmix, so nothing
     blocks anyone — but two sources would MIX. When Kodi playback starts,
@@ -195,7 +242,7 @@ def enforce_kodi_priority(pstate):
             # looping its last samples (loud beep) until the next client
             # opens the device. Flush it with a short burst of silence;
             # harmlessly fails busy if Kodi already grabbed the device.
-            subprocess.run(["aplay", "-q", "-D", "plughw:CARD=vc4hdmi,DEV=0",
+            subprocess.run(["aplay", "-q", "-D", hdmi_alsa_device(),
                             "-t", "raw", "-f", "S16_LE", "-r", "48000",
                             "-c", "2", "-d", "1", "/dev/zero"],
                            stdout=subprocess.DEVNULL,
