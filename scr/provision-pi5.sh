@@ -205,24 +205,46 @@ chown "$USER_NAME:$USER_NAME" "$GS"
 
 # -----------------------------------------------------------------------------
 say "8/9  Raspotify + shairport-sync (both named '$SPOTIFY_NAME')"
+# Detect the HDMI ALSA card. Pi 3/4 have one card named "vc4hdmi"; Pi 5 has
+# two ("vc4hdmi0"/"vc4hdmi1", one per micro-HDMI port) — prefer whichever one
+# actually has a display attached (non-empty ELD monitor_name), else just
+# take the first vc4hdmi* card found.
+HDMI_CARD=""
+for f in /proc/asound/card*/eld*; do
+  name=$(grep -m1 '^monitor_name' "$f" 2>/dev/null | awk '{$1="";print}' | xargs)
+  [ -z "$name" ] && continue
+  n=$(echo "$f" | sed -E 's#.*/card([0-9]+)/.*#\1#')
+  HDMI_CARD=$(aplay -l | awk -v n="$n" '$0 ~ "^card "n":" {print; exit}' \
+              | sed -E 's/^card [0-9]+: ([^ ]+).*/\1/')
+  break
+done
+[ -z "$HDMI_CARD" ] && HDMI_CARD=$(aplay -l | grep -oE 'vc4hdmi[0-9]*' | head -1)
+[ -z "$HDMI_CARD" ] && HDMI_CARD="vc4hdmi"
+ALSA_DEVICE="plughw:CARD=${HDMI_CARD},DEV=0"
+say "   using ALSA device: $ALSA_DEVICE"
+
+if ! grep -q "^LIBRESPOT_NAME=\"$SPOTIFY_NAME\"" /etc/raspotify/conf 2>/dev/null; then
 cat >> /etc/raspotify/conf <<EOF
 
 # --- Open Media Box ---
 LIBRESPOT_NAME="$SPOTIFY_NAME"
 LIBRESPOT_DEVICE_TYPE="avr"
 LIBRESPOT_BACKEND="alsa"
-LIBRESPOT_DEVICE="plughw:CARD=vc4hdmi,DEV=0"
+LIBRESPOT_DEVICE="$ALSA_DEVICE"
 LIBRESPOT_BITRATE="320"
 LIBRESPOT_INITIAL_VOLUME="80"
 EOF
+fi
 systemctl restart raspotify
-sed -i '0,/^\s*\/\?\s*name = /s##\tname = "'"$AIRPLAY_NAME"'";\n#' /etc/shairport-sync.conf 2>/dev/null || true
-# safe explicit settings
-grep -q 'open-media-box airplay' /etc/shairport-sync.conf || cat >> /etc/shairport-sync.conf <<EOF
-// open-media-box airplay overrides (last wins)
-general = { name = "$AIRPLAY_NAME"; output_backend = "alsa"; };
-alsa = { output_device = "plughw:CARD=vc4hdmi,DEV=0"; };
-EOF
+
+# Edit shairport-sync's shipped config IN PLACE (its libconfig format
+# rejects a second top-level "general"/"alsa" block, so appending an
+# override group — the old approach — fails with "duplicate setting name").
+# These sed patterns match the package's default commented-out lines, so
+# they're safe to re-run (a no-op once already applied).
+sed -i 's#^//\s*name = "%H";.*#\tname = "'"$AIRPLAY_NAME"'"; // set by provisioning#' /etc/shairport-sync.conf
+sed -i '0,/^\/\/\s*output_backend = /{s#^//\s*output_backend = "alsa";.*#\toutput_backend = "alsa"; // set by provisioning#}' /etc/shairport-sync.conf
+sed -i 's#^//\s*output_device = "default";.*#\toutput_device = "'"$ALSA_DEVICE"'"; // set by provisioning#' /etc/shairport-sync.conf
 systemctl enable --now shairport-sync
 systemctl restart shairport-sync || true
 
@@ -262,7 +284,7 @@ grep -q '^dtoverlay=gpio-shutdown' "$CONFIG_TXT" || echo 'dtoverlay=gpio-shutdow
 
 systemctl start kodi.service
 
-cat <<'DONE'
+cat <<DONE
 
 =============================================================================
  BASE SETUP COMPLETE.  Reboot, then finish these interactive steps:
