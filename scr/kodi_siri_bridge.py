@@ -179,9 +179,22 @@ def read_battery():
 
 
 def kodi_player_active():
-    """True if Kodi has an active audio/video player."""
-    r = kodi_rpc("Player.GetActivePlayers", {}, want_result=True)
-    return bool(r)
+    """True if Kodi is *actively playing* (not merely paused).
+
+    A paused Kodi keeps its player object but releases the ALSA device, so
+    treating "paused" as active would hold the audio hostage and stop the
+    music services from ever coming back.
+    """
+    players = kodi_rpc("Player.GetActivePlayers", {}, want_result=True)
+    if not players:
+        return False
+    pid = players[0].get("playerid", 1)
+    props = kodi_rpc("Player.GetProperties",
+                     {"playerid": pid, "properties": ["speed"]},
+                     want_result=True)
+    if props is None:                              # can't tell -> assume busy
+        return True
+    return props.get("speed", 0) != 0
 
 
 def hdmi_alsa_device():
@@ -236,6 +249,8 @@ MUSIC_SERVICES = ["raspotify", "shairport-sync"]
 # and simply shows as paused. librespot releases the exclusive ALSA device
 # while paused, so Kodi still gets the audio.
 SPOTIFY_CONF = "/etc/spotify-bridge.conf"
+# Spotify Connect device name to match (same as raspotify's LIBRESPOT_NAME)
+DEVICE_NAME = os.environ.get("DEVICE_NAME", "boxy")
 _spotify_cfg = {}
 _spotify_token = {"value": None, "expires": 0.0}
 
@@ -282,6 +297,37 @@ def _spotify_access_token():
     return _spotify_token["value"]
 
 
+def spotify_is_playing():
+    """True if Spotify is actively playing *on this box*.
+
+    Returns None if the state can't be determined (no credentials, API error),
+    so callers can tell "not playing" apart from "don't know".
+    """
+    if not SPOTIFY_API:
+        return None
+    tok = _spotify_access_token()
+    if not tok:
+        return None
+    req = urllib.request.Request(
+        "https://api.spotify.com/v1/me/player",
+        headers={"Authorization": "Bearer " + tok})
+    try:
+        raw = urllib.request.urlopen(req, timeout=6).read()
+        if not raw:                                # 204 = nothing active
+            return False
+        data = json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 204:
+            return False
+        return None
+    except Exception:                              # noqa: BLE001
+        return None
+    if not data.get("is_playing"):
+        return False
+    dev = (data.get("device") or {}).get("name", "")
+    return dev == DEVICE_NAME
+
+
 def spotify_pause():
     """Pause Spotify playback. Returns True if the API accepted it."""
     tok = _spotify_access_token()
@@ -323,53 +369,62 @@ def kick_kodi_audio():
 
 
 def enforce_kodi_priority(pstate):
-    """Kodi owns the HDMI output while it is playing.
+    """Last one to press play owns the audio.
 
-    The device is exclusive, so whoever holds it wins. Restarting the music
-    services is not enough: librespot comes straight back up and re-grabs the
-    device before Kodi's sink opens, and Kodi then fails with "no sink was
-    returned" and stays silent. So: STOP them for the duration of playback and
-    only start them again once Kodi is idle.
+    The HDMI device is exclusive, so two players fight over it: librespot
+    hammers snd_pcm_open once a second and Kodi eventually drops its sink,
+    leaving nobody playing. Rather than giving one side permanent priority,
+    hand the device to whichever source *just started*:
+
+      - Kodi starts    -> pause Spotify (via Web API, so the box stays in the
+                          Spotify device list), stop AirPlay.
+      - Spotify starts -> pause Kodi, keeping its resume position.
+      - Kodi goes idle -> restart the music services.
     """
-    active = kodi_player_active()
-    if active == pstate["active"]:
-        return
+    kodi = kodi_player_active()
+    spot = spotify_is_playing()          # None when unknown / no credentials
+
     try:
-        if active:
-            paused_via_api = SPOTIFY_API and spotify_pause()
-            if paused_via_api:
-                # Spotify paused itself: librespot keeps the Connect session
-                # (box stays in the device list) but releases the ALSA device.
-                # Only AirPlay still needs stopping.
-                print("kodi playback started — paused Spotify via API",
-                      flush=True)
+        # --- whoever just pressed play takes the audio ---------------------
+        if kodi and not pstate["kodi"]:
+            # Kodi just started -> Spotify yields.
+            if SPOTIFY_API and spot is not False and spotify_pause():
+                print("kodi started — paused Spotify", flush=True)
                 subprocess.run(["systemctl", "stop", "shairport-sync"],
                                timeout=20)
             else:
-                print("kodi playback started — stopping Spotify/AirPlay",
-                      flush=True)
+                print("kodi started — stopping Spotify/AirPlay", flush=True)
                 subprocess.run(["systemctl", "stop", *MUSIC_SERVICES],
                                timeout=20)
-            # Killing librespot mid-stream leaves the HDMI ring buffer looping
-            # its last samples (loud beep) until the next client opens the
-            # device. Flush it with a short burst of silence.
+            # A killed librespot leaves the HDMI ring buffer looping its last
+            # samples (loud beep) until someone reopens the device.
             subprocess.run(["aplay", "-q", "-D", hdmi_alsa_device(),
                             "-t", "raw", "-f", "S16_LE", "-r", "48000",
                             "-c", "2", "-d", "1", "/dev/zero"],
                            stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL, timeout=6)
-            # Kodi opens its sink as playback starts — i.e. while librespot
-            # may still hold the exclusive device. It caches that failure
-            # ("no sink was returned") and stays silent for the whole title
-            # even after the device frees up. Re-setting the audio device
-            # forces AudioEngine to re-init the sink now that it is free.
+            # Kodi may have opened its sink while librespot still held the
+            # device; it caches that failure and stays silent. Force a re-init.
             kick_kodi_audio()
-        else:
+
+        elif spot and not pstate["spotify"]:
+            # Spotify just started -> Kodi yields (pause, don't stop: the user
+            # keeps their position and can resume the film afterwards).
+            if kodi:
+                print("spotify started — pausing Kodi", flush=True)
+                kodi_rpc("Player.PlayPause",
+                         {"playerid": 1, "play": False})
+
+        elif not kodi and pstate["kodi"]:
+            # Kodi stopped/paused -> make the music services available again.
             print("kodi idle — Spotify/AirPlay available again", flush=True)
             subprocess.run(["systemctl", "start", *MUSIC_SERVICES], timeout=20)
+
     except Exception as exc:                       # noqa: BLE001
         print("priority switch error:", exc, flush=True)
-    pstate["active"] = active
+
+    pstate["kodi"] = kodi
+    pstate["spotify"] = bool(spot)
 
 
 def remote_connected():
@@ -499,8 +554,8 @@ def main():
               "started_at": time.monotonic()}
     # Start from Kodi's real state, so a bridge restart mid-playback doesn't
     # leave the music services stopped forever (or evict them needlessly).
-    pstate = {"active": kodi_player_active()}
-    if not pstate["active"]:
+    pstate = {"kodi": kodi_player_active(), "spotify": False}
+    if not pstate["kodi"]:
         try:                                       # undo any stale stop
             subprocess.run(["systemctl", "start", *MUSIC_SERVICES], timeout=20)
         except Exception:                          # noqa: BLE001
