@@ -90,6 +90,8 @@ MODE_INTERVAL = 1.0     # how often to re-check what's on screen
 # Reconnect watchdog: if the remote drops (out of range / sleep), BlueZ does
 # not always chase it — actively retry the connection until it's back.
 RECONNECT_INTERVAL = 15   # seconds between connection checks / attempts
+BOND_SETTLE_SECS = 300    # don't re-arm within this long of bridge startup —
+                          # cycling a just-created bond destroys it
 
 KODI_URL = "http://localhost:8080/jsonrpc"
 KODI_AUTH = base64.b64encode(
@@ -234,16 +236,30 @@ def cycle_connection():
 
 
 def try_reconnect(rstate):
-    """Watchdog: chase the remote when it drops, and re-arm the link after
-    it comes back from a real absence (>= 2 polls, i.e. ~30s) or at startup
-    (need_rearm starts True) — that's when the zombie state appears."""
+    """Watchdog: chase the remote when it drops, and re-arm the link after it
+    comes back from a real absence (>= 2 polls, i.e. ~30s) — that's when the
+    zombie state appears.
+
+    The re-arm is deliberately conservative: a disconnect/reconnect cycle run
+    against a *freshly created* bond destroys it (the remote keeps its keys,
+    BlueZ loses its own, and every later pairing fails with auth 0x05 — the
+    remote then has to be reset before it will bond again). So it never runs
+    at startup, and never within BOND_SETTLE_SECS of the bridge coming up.
+    """
     up = remote_connected()
+    now = time.monotonic()
     if up:
         if not rstate["connected"]:
             print(f"remote {REMOTE_MAC} reconnected", flush=True)
-            if rstate["need_rearm"]:
+            settled = (now - rstate["started_at"]) >= BOND_SETTLE_SECS
+            if rstate["need_rearm"] and settled:
                 rstate["need_rearm"] = False
                 cycle_connection()
+            elif rstate["need_rearm"]:
+                # too soon after startup — a cycle here risks the bond
+                print("  (skipping re-arm: bond may still be settling)",
+                      flush=True)
+                rstate["need_rearm"] = False
         rstate["connected"] = True
         rstate["down_polls"] = 0
         return
@@ -310,9 +326,10 @@ def main():
     state = {"held": None, "held_action": None, "next_fire": 0.0}
     bstate = {"warned": False}
     mstate = {"mode": "gui", "next": 0.0}
-    # need_rearm starts True -> one re-arm cycle shortly after startup, so a
-    # bridge restart always lands in a known-good notification state.
-    rstate = {"connected": False, "down_polls": 0, "need_rearm": True}
+    # need_rearm starts False: never cycle the link at startup. Doing so on a
+    # bond created moments earlier permanently breaks it (see try_reconnect).
+    rstate = {"connected": False, "down_polls": 0, "need_rearm": False,
+              "started_at": time.monotonic()}
     pstate = {"active": False}
     last_batt = 0.0
     last_reconnect = 0.0
