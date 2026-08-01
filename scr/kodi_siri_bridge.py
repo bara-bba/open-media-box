@@ -23,6 +23,8 @@ import re
 import select
 import subprocess
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 
 BTN_HANDLE = "0x0039"
@@ -228,6 +230,78 @@ def hdmi_alsa_device():
 
 MUSIC_SERVICES = ["raspotify", "shairport-sync"]
 
+# Optional Spotify Web API credentials (written by scr/spotify-auth.py). When
+# present, Kodi playback PAUSES Spotify via the API instead of stopping the
+# raspotify service — the box then stays visible in the Spotify device list
+# and simply shows as paused. librespot releases the exclusive ALSA device
+# while paused, so Kodi still gets the audio.
+SPOTIFY_CONF = "/etc/spotify-bridge.conf"
+_spotify_cfg = {}
+_spotify_token = {"value": None, "expires": 0.0}
+
+
+def _load_spotify_cfg():
+    try:
+        with open(SPOTIFY_CONF) as fh:
+            for line in fh:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    _spotify_cfg[k.strip()] = v.strip()
+    except OSError:
+        pass
+    return all(k in _spotify_cfg for k in
+               ("SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET",
+                "SPOTIFY_REFRESH_TOKEN"))
+
+
+SPOTIFY_API = _load_spotify_cfg()
+
+
+def _spotify_access_token():
+    """Refresh-token grant, cached until shortly before expiry."""
+    if _spotify_token["value"] and time.time() < _spotify_token["expires"]:
+        return _spotify_token["value"]
+    basic = base64.b64encode(
+        f"{_spotify_cfg['SPOTIFY_CLIENT_ID']}:"
+        f"{_spotify_cfg['SPOTIFY_CLIENT_SECRET']}".encode()).decode()
+    body = urllib.parse.urlencode({
+        "grant_type": "refresh_token",
+        "refresh_token": _spotify_cfg["SPOTIFY_REFRESH_TOKEN"]}).encode()
+    req = urllib.request.Request(
+        "https://accounts.spotify.com/api/token", data=body,
+        headers={"Authorization": "Basic " + basic,
+                 "Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        data = json.loads(urllib.request.urlopen(req, timeout=8).read())
+    except Exception as exc:                       # noqa: BLE001
+        print("spotify token error:", exc, flush=True)
+        return None
+    _spotify_token["value"] = data.get("access_token")
+    _spotify_token["expires"] = time.time() + data.get("expires_in", 3600) - 60
+    return _spotify_token["value"]
+
+
+def spotify_pause():
+    """Pause Spotify playback. Returns True if the API accepted it."""
+    tok = _spotify_access_token()
+    if not tok:
+        return False
+    req = urllib.request.Request(
+        "https://api.spotify.com/v1/me/player/pause", data=b"", method="PUT",
+        headers={"Authorization": "Bearer " + tok, "Content-Length": "0"})
+    try:
+        urllib.request.urlopen(req, timeout=8)
+        return True
+    except urllib.error.HTTPError as exc:
+        # 404 = no active device, 403 = nothing playing: both mean "already idle"
+        if exc.code in (403, 404):
+            return True
+        print("spotify pause error:", exc, flush=True)
+    except Exception as exc:                       # noqa: BLE001
+        print("spotify pause error:", exc, flush=True)
+    return False
+
 
 def kick_kodi_audio():
     """Force Kodi's AudioEngine to re-open its ALSA sink.
@@ -262,9 +336,20 @@ def enforce_kodi_priority(pstate):
         return
     try:
         if active:
-            print("kodi playback started — stopping Spotify/AirPlay",
-                  flush=True)
-            subprocess.run(["systemctl", "stop", *MUSIC_SERVICES], timeout=20)
+            paused_via_api = SPOTIFY_API and spotify_pause()
+            if paused_via_api:
+                # Spotify paused itself: librespot keeps the Connect session
+                # (box stays in the device list) but releases the ALSA device.
+                # Only AirPlay still needs stopping.
+                print("kodi playback started — paused Spotify via API",
+                      flush=True)
+                subprocess.run(["systemctl", "stop", "shairport-sync"],
+                               timeout=20)
+            else:
+                print("kodi playback started — stopping Spotify/AirPlay",
+                      flush=True)
+                subprocess.run(["systemctl", "stop", *MUSIC_SERVICES],
+                               timeout=20)
             # Killing librespot mid-stream leaves the HDMI ring buffer looping
             # its last samples (loud beep) until the next client opens the
             # device. Flush it with a short burst of silence.

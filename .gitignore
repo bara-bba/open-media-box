@@ -12,3 +12,6 @@ Thumbs.db
 
 # secrets / local config
 .env
+
+# spotify oauth token (never commit)
+spotify-bridge.conf
