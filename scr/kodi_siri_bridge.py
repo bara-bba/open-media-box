@@ -388,8 +388,13 @@ def enforce_kodi_priority(pstate):
         # --- whoever just pressed play takes the audio ---------------------
         if kodi and not pstate["kodi"]:
             # Kodi just started -> Spotify yields.
-            if SPOTIFY_API and spot is not False and spotify_pause():
-                print("kodi started — paused Spotify", flush=True)
+            if SPOTIFY_API:
+                # Keep raspotify running so the box stays in the Spotify
+                # device list; just make sure it is not playing. (When it is
+                # already paused this is a no-op that still returns True.)
+                spotify_pause()
+                print("kodi started — Spotify paused, AirPlay stopped",
+                      flush=True)
                 subprocess.run(["systemctl", "stop", "shairport-sync"],
                                timeout=20)
             else:
@@ -417,6 +422,9 @@ def enforce_kodi_priority(pstate):
 
         elif not kodi and pstate["kodi"]:
             # Kodi stopped/paused -> make the music services available again.
+            # With the API in play raspotify was never stopped, so only
+            # AirPlay needs bringing back; starting a running unit is a no-op
+            # either way, so just start both.
             print("kodi idle — Spotify/AirPlay available again", flush=True)
             subprocess.run(["systemctl", "start", *MUSIC_SERVICES], timeout=20)
 
