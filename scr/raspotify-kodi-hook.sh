@@ -24,8 +24,10 @@ clear_all() {
     setprop SpotifyArt ""
 }
 
-# first cover art URL (librespot gives a space-separated list, largest first)
-ART="${COVERS%% *}"
+# First cover art URL. librespot passes COVERS as a NEWLINE-separated list
+# (largest first), so split on any whitespace and take the first entry —
+# passing the whole blob would give Kodi an unusable multi-line "URL".
+ART="$(printf '%s' "$COVERS" | tr -s ' \t\r\n' '\n' | head -n1)"
 
 case "$PLAYER_EVENT" in
     playing|track_changed|load|loading|started|preloading|changed)
