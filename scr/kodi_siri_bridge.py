@@ -368,6 +368,27 @@ def kick_kodi_audio():
              {"setting": "audiooutput.audiodevice", "value": dev})
 
 
+def wait_device_free(timeout=6.0):
+    """Block until nothing holds the HDMI PCM, or `timeout` elapses.
+
+    Pausing Spotify does not free the exclusive device instantly — librespot
+    finishes its buffer first. Kicking Kodi's sink before that happens just
+    reproduces the "device busy" failure it then caches, leaving the film
+    silent. Returns True if the device came free.
+    """
+    m = re.search(r"CARD=([^,]+)", hdmi_alsa_device())
+    path = f"/proc/asound/{m.group(1) if m else 'vc4hdmi'}/pcm0p/sub0/status"
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            if open(path).read().lstrip().startswith("closed"):
+                return True
+        except OSError:
+            return True                            # can't tell — don't block
+        time.sleep(0.25)
+    return False
+
+
 def enforce_kodi_priority(pstate):
     """Last one to press play owns the audio.
 
@@ -401,6 +422,11 @@ def enforce_kodi_priority(pstate):
                 print("kodi started — stopping Spotify/AirPlay", flush=True)
                 subprocess.run(["systemctl", "stop", *MUSIC_SERVICES],
                                timeout=20)
+            # Spotify does not drop the device the instant it pauses, so wait
+            # for it before touching the sink — otherwise the flush and the
+            # re-init below both hit a busy device and Kodi stays silent.
+            if not wait_device_free():
+                print("  warning: HDMI device still busy", flush=True)
             # A killed librespot leaves the HDMI ring buffer looping its last
             # samples (loud beep) until someone reopens the device.
             subprocess.run(["aplay", "-q", "-D", hdmi_alsa_device(),
@@ -419,6 +445,12 @@ def enforce_kodi_priority(pstate):
                 print("spotify started — pausing Kodi", flush=True)
                 kodi_rpc("Player.PlayPause",
                          {"playerid": 1, "play": False})
+                # Kodi keeps the exclusive device for a moment after pausing,
+                # and librespot only retries snd_pcm_open for a few seconds
+                # before giving up (Spotify then shows itself paused). Drop
+                # Kodi's sink now so librespot's next retry succeeds.
+                time.sleep(0.5)
+                kick_kodi_audio()
 
         elif not kodi and pstate["kodi"]:
             # Kodi stopped/paused -> make the music services available again.
