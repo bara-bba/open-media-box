@@ -85,7 +85,26 @@ def _detect_remote_mac():
 
 
 REMOTE_MAC = _detect_remote_mac()
-BATTERY_DEV = "/org/bluez/hci0/dev_" + REMOTE_MAC.replace(":", "_")
+def _find_device_path():
+    """BlueZ object path for the remote. The adapter is not always hci0 — a
+    USB dongle shows up as hci1 — so look the device up instead of guessing.
+    """
+    node = "dev_" + REMOTE_MAC.replace(":", "_")
+    try:
+        for path in sorted(glob.glob(f"/sys/class/bluetooth/hci*")):
+            hci = os.path.basename(path)
+            out = subprocess.run(
+                ["busctl", "get-property", "org.bluez",
+                 f"/org/bluez/{hci}/{node}", "org.bluez.Device1", "Address"],
+                capture_output=True, text=True, timeout=4)
+            if out.returncode == 0:
+                return f"/org/bluez/{hci}/{node}"
+    except Exception:                              # noqa: BLE001
+        pass
+    return f"/org/bluez/hci0/{node}"
+
+
+BATTERY_DEV = _find_device_path()
 BATTERY_INTERVAL = 120
 BATTERY_LOW = 20
 MODE_INTERVAL = 1.0     # how often to re-check what's on screen
