@@ -285,6 +285,13 @@ grep -q '^dtoverlay=gpio-shutdown' "$CONFIG_TXT" || echo 'dtoverlay=gpio-shutdow
 # Appliance-style boot: no rainbow test square, no scrolling kernel log, no
 # blinking console cursor — the box goes from black straight to Kodi's splash.
 grep -q '^disable_splash=1' "$CONFIG_TXT" || echo 'disable_splash=1' >> "$CONFIG_TXT"
+
+# The Pi 5's onboard Broadcom BT connects to an Apple Siri Remote (A2854) but
+# drops the link ~100ms later without a single SMP frame, so it can never bond.
+# A Realtek RTL8761BU USB dongle pairs it first try. Disable the onboard radio
+# so the dongle is the only adapter. (Harmless if you use no Siri Remote —
+# comment out to keep onboard Bluetooth.)
+grep -q '^dtoverlay=disable-bt' "$CONFIG_TXT" || echo 'dtoverlay=disable-bt' >> "$CONFIG_TXT"
 CMDLINE=/boot/firmware/cmdline.txt
 if [ -f "$CMDLINE" ]; then
   python3 - "$CMDLINE" <<'PY'
