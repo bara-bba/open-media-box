@@ -532,6 +532,7 @@ def try_reconnect(rstate):
     if up:
         if not rstate["connected"]:
             print(f"remote {REMOTE_MAC} reconnected", flush=True)
+            notify("Siri Remote", "Connected", "link.png")
             settled = (now - rstate["started_at"]) >= BOND_SETTLE_SECS
             if rstate["need_rearm"] and settled:
                 rstate["need_rearm"] = False
@@ -547,6 +548,7 @@ def try_reconnect(rstate):
     rstate["down_polls"] += 1
     if rstate["connected"]:
         print(f"remote {REMOTE_MAC} disconnected — will retry", flush=True)
+        notify("Siri Remote", "Disconnected", "link-slash.png")
     rstate["connected"] = False
     if rstate["down_polls"] >= 2:      # real absence, not our own brief cycle
         rstate["need_rearm"] = True
@@ -557,6 +559,18 @@ def try_reconnect(rstate):
         pass
 
 
+SKIN_ICONS = "special://skin/extras/icons"
+
+
+def notify(title, message, icon=None, seconds=4):
+    """Kodi toast notification, optionally with a skin icon."""
+    params = {"title": title, "message": message,
+              "displaytime": int(seconds * 1000)}
+    if icon:
+        params["image"] = f"{SKIN_ICONS}/{icon}"
+    kodi_rpc("GUI.ShowNotification", params)
+
+
 def update_battery(bstate):
     pct = read_battery()
     if pct is None:
@@ -564,9 +578,8 @@ def update_battery(bstate):
     kodi_builtin(f"SetProperty(SiriRemoteBattery,{pct}%,home)")
     kodi_builtin(f"SetProperty(SiriRemoteBatteryLevel,{pct},home)")
     if pct <= BATTERY_LOW and not bstate["warned"]:
-        kodi_rpc("GUI.ShowNotification",
-                 {"title": "Siri Remote", "message": f"Battery low: {pct}%",
-                  "displaytime": 8000})
+        notify("Siri Remote", f"Battery low: {pct}%",
+               "battery-quarter.png", seconds=8)
         bstate["warned"] = True
     elif pct > BATTERY_LOW + 5:
         bstate["warned"] = False
