@@ -48,17 +48,14 @@ apt-get update
 apt-get -y upgrade
 apt-get -y install \
   kodi kodi-inputstream-adaptive kodi-inputstream-ffmpegdirect \
-  kodi-eventclients-kodi-send \
+  kodi-eventclients-kodi-send kodi-pvr-iptvsimple \
   shairport-sync avahi-utils rfkill evtest \
   bluez libopus0 ffmpeg python3-venv git curl
 
-# Raspotify (its own apt repo)
-curl -sSL https://dtcooper.github.io/raspotify/key.asc \
-  | tee /usr/share/keyrings/raspotify_key.asc >/dev/null
-echo 'deb [signed-by=/usr/share/keyrings/raspotify_key.asc] https://dtcooper.github.io/raspotify raspotify main' \
-  > /etc/apt/sources.list.d/raspotify.list
-apt-get update
-apt-get -y install raspotify
+# NOTE: Spotify is NOT raspotify anymore — it's the in-Kodi
+# plugin.audio.spotify addon (glk1001 fork), installed manually. See the
+# README "Spotify" section. raspotify + the Web-API arbitration bridge it
+# needed were removed entirely; don't reinstall raspotify here.
 
 # -----------------------------------------------------------------------------
 say "2/9  Kodi autostart service (GBM/DRM, 1080p)"

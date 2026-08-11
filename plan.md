@@ -1,5 +1,12 @@
 # Open Media Box — Project Plan
 
+> **Historical.** This was the original plan, written for the Pi 3. The
+> project has since migrated to a Pi 5 ("boxy") with a different software
+> architecture in places (Spotify is now an in-Kodi addon, not Raspotify;
+> YouTube needs personal API credentials; power button is on the Pi 5's
+> dedicated header, not GPIO). For what's actually running today, see
+> [`README.md`](README.md).
+
 ## Goal
 
 Repurpose an existing Raspberry Pi 3 as an open-source media box that streams Jellyfin from a local server, outputs 1080p via HDMI, and is controlled with a Siri Remote (3rd gen).
