@@ -1,0 +1,15 @@
+[Unit]
+Description=boxy boot splash (early framebuffer image)
+DefaultDependencies=no
+After=systemd-udevd.service
+Before=sysinit.target basic.target kodi.service
+Conflicts=shutdown.target
+
+[Service]
+Type=simple
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/boxy-splash.sh
+TimeoutStartSec=20
+
+[Install]
+WantedBy=sysinit.target

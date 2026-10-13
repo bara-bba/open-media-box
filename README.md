@@ -223,80 +223,21 @@ seeks**, **centre opens OSD**, **Back stops**, **⏯ pauses**.
 
 ---
 
-### Live TV — Dispatcharr + Jellyfin + Kodi
-**This lives on a different machine** — `servarr` (192.168.1.68), the same
-Docker host running Jellyfin and the rest of the `*arr` stack — not on boxy
-itself. boxy's Kodi is just a client of it. Setup reference:
-[`setup-dispatcharr.sh`](scr/setup-dispatcharr.sh) (prints the compose block
-to add; doesn't auto-patch `compose.yaml` since that file is hand-maintained
-and heavily commented — a YAML-library rewrite would strip all of it).
+## Boxy customisations (`scr/kodi-patches/`)
 
-**Dispatcharr** (`ghcr.io/dispatcharr/dispatcharr`, all-in-one image) manages
-IPTV M3U sources + XMLTV guide data and re-exposes a curated channel list as
-its own M3U/EPG endpoints (and an HDHomeRun-emulated tuner). It's a
-management/proxy layer — it needs a real upstream IPTV source, it doesn't
-generate content.
+Applied by `provision-pi5.sh` as full-file overlays; they are version-specific, so
+keep add-on auto-update off for Arctic Fuse 3, YouTube, Spotify and TMDb Helper.
 
-- **Deliberately not VPN-routed.** Tried `network_mode: service:gluetun`
-  first — Rai's streams (and likely other Italian broadcasters) started
-  failing immediately, and it turned out to be unrelated to geography: Akamai
-  (Rai's CDN) blocks known commercial VPN IP ranges outright, regardless of
-  the exit country being correctly set to Italy. IPTV needs your real
-  residential IP; reverted to Dispatcharr on its own `servarrnetwork` address
-  instead.
-- **DNS matters.** Italy's ISP-level anti-piracy DNS blocking ("Piracy
-  Shield") has a real history of over-blocking, and was seen incorrectly
-  affecting `mediapolis.rai.it` — Rai's *own* legitimate relinker domain —
-  on the host's default resolver. Setting the container's `dns:` to
-  `1.1.1.1`/`1.0.0.1` fixed it. Confirmed via direct `curl` testing before
-  touching Docker at all: same URL failed via default DNS, worked via
-  `1.1.1.1`, worked via the VPN (different reason, see above) — isolating
-  DNS as the actual variable.
-- **Provenance matters more than "does it play."** Public aggregator M3U
-  lists (`iptv-org/iptv`, `Free-TV/IPTV`) mix legitimately-sourced channels
-  (pointing at the broadcaster's own domain — `mediapolis.rai.it`,
-  `originstream12.rai.it`, Al Jazeera's `getaj.net`) with unauthorized
-  restreams on generic third-party reseller/CDN domains. A stream working
-  has nothing to do with whether it's licensed — checked per-channel by
-  looking at which domain it actually points to, not by whether it loads.
-  One entry (`streamhostingcdn.top`, an old Rai Sport mirror) turned out to
-  be DNS-sinkholed to `0.0.0.0` by Italian ISP blocking — a real anti-piracy
-  block, left alone rather than routed around.
-- **Rai's relinker (`mediapolis.rai.it/relinker/relinkerServlet.htm`) needs
-  a live resolve, not a static URL.** Requires a `Referer:
-  https://www.raiplay.it/` header (else `403` from Akamai) and an
-  `output=64` query param (else an empty `<Mediapolis>` response) to return
-  the actual stream — and that returned URL is a **signed token that
-  expires in 5 minutes** (`hdnea=st=...~exp=...`). Every Rai channel in the
-  public M3U lists uses this same mechanism (just a different `cont=` ID
-  each), so none of them work as a plain static M3U entry long-term — they
-  all need periodic re-resolution. **Not yet built**: a small timed
-  resolver script to keep Rai channels alive in Dispatcharr; currently an
-  open item, not a solved one.
-- **EPG (`tvit`, `https://tvit.leicaflorianrobert.dev/epg/list.xml`) turned
-  out to be a dead end for programme data**, despite being branded for
-  Italy: it defines dozens of Italian channels (logos, IDs) but the actual
-  `<programme>` entries in the file are 100% Romanian channels — zero
-  schedule data for any Italian channel. Channel-level EPG matching
-  succeeds (looks assigned in Dispatcharr) while the guide stays empty —
-  that's a source-data gap, not a Dispatcharr bug. Need a different EPG
-  source; not yet found one that actually has Italian programme data.
-- **Kodi's PVR side**: `pvr.iptvsimple`, pointed at Dispatcharr's own M3U +
-  EPG output. On Linux, Kodi binary PVR/inputstream addons come from the
-  **OS package manager, not Kodi's in-app zip repo** — `mirrors.kodi.tv`'s
-  addons.xml only lists Windows/macOS/Android builds for this addon, no
-  Linux ones. Install via `apt install kodi-pvr-iptvsimple` (already in
-  `provision-pi5.sh`), not through Kodi's Add-on browser.
-- **`pvr.jellyfin`/"Kofin"** (a PVR client that would surface Jellyfin's
-  Live TV natively in Kodi, rather than Kodi hitting Dispatcharr directly)
-  exists but is source-only (C++, CMake build, no prebuilt zip/repo found)
-  — skipped rather than attempting an on-device compile on a memory-tight
-  2 GB board. Kodi currently talks to Dispatcharr directly instead of
-  through Jellyfin.
-- **Jellyfin Live TV integration: unresolved.** Tuner added (M3U pointed at
-  Dispatcharr's output) but channels aren't appearing after a guide
-  refresh — not yet root-caused, needs checking whether Jellyfin's tuner
-  scan itself is failing vs. a guide-mapping issue.
+| Area | What changed |
+|---|---|
+| Boot | `boxy-splash.service` paints the boxy image on the framebuffer before systemd starts; kernel log, cursor and the Arctic Fuse startup overlay are gone |
+| IPTV hub (slot 1101) | Live TV as a 7-per-row square-tile gallery (PVR channels), no sliding rows |
+| YouTube hub (slot 1102) | Recommendations only, as a wall of 31 videos + a white "Next page" tile (full last row); 16:9 thumbnails; clicking the tab opens YouTube search; the single-row title chip is hidden |
+| Spotify | Pairing is kept (backup restore on failed re-pair), 5-minute back-off on token errors, no modal pairing popup over other pages, and every `browse_*` row is cached and refreshed in the background (`boxy_snapshot.py`) |
+| TMDb Helper | Trakt stats failure at startup no longer raises |
+
+Screenshots: ![IPTV](docs/screenshots/iptv.png) ![YouTube](docs/screenshots/youtube.png)
+![Spotify](docs/screenshots/spotify.png)
 
 ## Services
 ```bash

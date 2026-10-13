@@ -12,6 +12,7 @@
 #   - sets Arctic Fuse 3 as the skin, adds the top-bar remote-battery indicator
 #   - installs the Siri Remote -> Kodi bridge (+ systemd service)
 #   - configures Raspotify + shairport-sync as "open-media"
+#   - applies the boxy overlay in scr/kodi-patches (hubs, YouTube/Spotify/TMDb, boot splash)
 #
 # STILL MANUAL AFTERWARDS (interactive, can't be scripted):
 #   - Jellyfin: launch add-on -> log in -> Add libraries
@@ -301,6 +302,73 @@ for flag in ("quiet", "loglevel=0", "logo.nologo",
         s += " " + flag
 open(p, "w").write(s + "\n")
 PY
+fi
+
+# -----------------------------------------------------------------------------
+say "Boxy customisations (skin hubs, YouTube/Spotify/TMDb patches, boot splash)"
+# Everything under scr/kodi-patches/ is a full-file overlay taken from the live
+# box. The files are version-specific (Arctic Fuse 3, YouTube 7.x, glk1001
+# Spotify fork 1.3.14): if an add-on updates it overwrites them, so keep
+# add-on auto-update off for these four add-ons.
+PATCHES="$(cd "$(dirname "$0")" && pwd)/kodi-patches"
+put(){ # put <src> <dest-dir>   (skipped if the add-on isn't installed yet)
+  if [ -d "$2" ]; then cp -f "$PATCHES/$1" "$2/" && echo "  patched $2/$(basename "$1")"
+  else echo "  skip $1 ($2 not installed)"; fi
+}
+SKIN="$KODI_ADDONS/skin.arctic.fuse.3/1080i"
+for f in Custom_1198_Dialog_Startup.xml Custom_1101_Hub.xml Includes_LiveTV.xml Includes_Hubs.xml; do put skin/$f "$SKIN"; done
+SPOT="$KODI_ADDONS/plugin.audio.spotify/resources/lib"
+for f in boxy_snapshot.py plugin_content.py spotty_auth.py main_service.py; do put spotify/$f "$SPOT"; done
+put tmdbhelper/cronjob.py "$KODI_ADDONS/plugin.video.themoviedb.helper/resources/tmdbhelper/lib/monitor"
+YT="$KODI_ADDONS/plugin.video.youtube/resources"
+put youtube/next_page_item.py "$YT/lib/youtube_plugin/kodion/items"
+put youtube/next_page.png "$YT/media"
+
+# Hub rows: IPTV (slot 1101) and YouTube recommendations only (slot 1102)
+NODES="$KODI_USERDATA/addon_data/script.skinvariables/nodes/skin.arctic.fuse.3"
+mkdir -p "$NODES"; cp -f "$PATCHES"/skinvariables/*.json "$NODES/"
+
+# Settings files: merge keys in while Kodi is stopped (Kodi rewrites them on exit)
+merge_settings(){ # merge_settings <file> <id=type=value>...
+  local f="$1"; shift; mkdir -p "$(dirname "$f")"
+  python3 - "$f" "$@" <<'PY'
+import sys, re, os
+f, items = sys.argv[1], sys.argv[2:]
+s = open(f, encoding="utf-8").read() if os.path.exists(f) else '<settings version="2">\n</settings>\n'
+for it in items:
+    k, t, v = it.split("=", 2)
+    attr = f' type="{t}"' if t else ""
+    new = f'    <setting id="{k}"{attr}>{v}</setting>\n'
+    pat = re.compile(r'[ \t]*<setting id="%s"[^>]*?(?:/>|>.*?</setting>)\n?' % re.escape(k), re.S)
+    s = pat.sub("", s)
+    s = s.replace("</settings>", new + "</settings>")
+open(f, "w", encoding="utf-8").write(s)
+PY
+}
+merge_settings "$KODI_USERDATA/addon_data/plugin.video.youtube/settings.xml" \
+  "kodion.thumbnail.size==5" "kodion.content.max_per_page==31"
+merge_settings "$KODI_USERDATA/addon_data/skin.arctic.fuse.3/settings.xml" \
+  "HomeSwitcher.1101.Name=string=IPTV" "HomeSwitcher.1101.Mode=string=Wall" \
+  "HomeSwitcher.1101.Shortcut.icon=string=special://skin/extras/icons/livetv.png" \
+  "HomeSwitcher.1102.Name=string=YouTube" "HomeSwitcher.1102.Mode=string=Wall" \
+  "HomeSwitcher.1102.Shortcut.target=string=" \
+  "HomeSwitcher.1102.Shortcut.Path=string=RunPlugin(plugin://plugin.video.youtube/search/input/)" \
+  "HomeSwitcher.1103.Name=string=Spotify" "HomeSwitcher.1103.Mode=string=Wall" \
+  "Hub.1107.DisableSearch=bool=true" "Hub.1107.DisableGroups=bool=true" \
+  "Hub.1107.DisableRecordings=bool=true" "Startup.DisableWaitForLoad=bool=true"
+chown -R "$USER_NAME:$USER_NAME" "$KODI_ADDONS" "$KODI_USERDATA"
+
+# IPTV (e.g. Dispatcharr M3U + EPG) feeds the PVR client; set the two URLs in
+# .env (IPTV_M3U_URL / IPTV_EPG_URL) or in the PVR add-on after first boot.
+
+# Boot splash: paint the boxy image on the framebuffer before systemd starts
+# anything, hide the text console (no kernel log, no cursor).
+if [ -f "$PATCHES/../../assets/boxy-splash.jpg" ]; then
+  install -D -m 644 "$PATCHES/../../assets/boxy-splash.jpg" /usr/local/share/boxy/splash.jpg
+  install -m 755 "$PATCHES/boot/boxy-splash.sh" /usr/local/bin/boxy-splash.sh
+  install -m 644 "$PATCHES/boot/boxy-splash.service" /etc/systemd/system/boxy-splash.service
+  systemctl daemon-reload; systemctl enable boxy-splash.service
+  grep -q 'systemd.show_status' "$CMDLINE" 2>/dev/null || sed -i '1 s/$/ systemd.show_status=false/' "$CMDLINE"
 fi
 
 systemctl start kodi.service

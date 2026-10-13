@@ -1,0 +1,17 @@
+[
+    {
+        "label": "Last Played Channels",
+        "path": "pvr://channels/tv/*?view=lastplayed",
+        "icon": "DefaultAddonPVRClient.png",
+        "target": "",
+        "guid": "guid-784b8810"
+    },
+    {
+        "label": "All Channels",
+        "path": "pvr://channels/tv/*",
+        "icon": "DefaultAddonPVRClient.png",
+        "target": "",
+        "guid": "guid-2ce50b12",
+        "widget_style": "Square"
+    }
+]
