@@ -324,6 +324,7 @@ put tmdbhelper/cronjob.py "$KODI_ADDONS/plugin.video.themoviedb.helper/resources
 YT="$KODI_ADDONS/plugin.video.youtube/resources"
 put youtube/next_page_item.py "$YT/lib/youtube_plugin/kodion/items"
 put youtube/next_page.png "$YT/media"
+put youtube/function_cache.py "$YT/lib/youtube_plugin/kodion/sql_store"
 
 # Hub rows: IPTV (slot 1101) and YouTube recommendations only (slot 1102)
 NODES="$KODI_USERDATA/addon_data/script.skinvariables/nodes/skin.arctic.fuse.3"

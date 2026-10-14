@@ -129,7 +129,7 @@ class PluginContent:
             xbmcplugin.endOfDirectory(handle=self.__addon_handle)
             return
 
-        log_msg(f"Got auth_token '{auth_token}'.")
+        log_msg("Got auth_token.")
 
         self.init_spotipy(auth_token)
 
