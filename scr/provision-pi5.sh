@@ -317,6 +317,7 @@ put(){ # put <src> <dest-dir>   (skipped if the add-on isn't installed yet)
 }
 SKIN="$KODI_ADDONS/skin.arctic.fuse.3/1080i"
 for f in Custom_1198_Dialog_Startup.xml Custom_1101_Hub.xml Includes_LiveTV.xml Includes_Hubs.xml; do put skin/$f "$SKIN"; done
+put skin/ytsearch.py "$KODI_ADDONS/skin.arctic.fuse.3"   # YouTube tab click: search prompt
 SPOT="$KODI_ADDONS/plugin.audio.spotify/resources/lib"
 for f in boxy_snapshot.py plugin_content.py spotty_auth.py main_service.py; do put spotify/$f "$SPOT"; done
 put tmdbhelper/cronjob.py "$KODI_ADDONS/plugin.video.themoviedb.helper/resources/tmdbhelper/lib/monitor"
@@ -352,7 +353,7 @@ merge_settings "$KODI_USERDATA/addon_data/skin.arctic.fuse.3/settings.xml" \
   "HomeSwitcher.1101.Shortcut.icon=string=special://skin/extras/icons/livetv.png" \
   "HomeSwitcher.1102.Name=string=YouTube" "HomeSwitcher.1102.Mode=string=Wall" \
   "HomeSwitcher.1102.Shortcut.target=string=" \
-  "HomeSwitcher.1102.Shortcut.Path=string=RunPlugin(plugin://plugin.video.youtube/search/input/)" \
+  "HomeSwitcher.1102.Shortcut.Path=string=RunScript(special://home/addons/skin.arctic.fuse.3/ytsearch.py)" \
   "HomeSwitcher.1103.Name=string=Spotify" "HomeSwitcher.1103.Mode=string=Wall" \
   "Hub.1107.DisableSearch=bool=true" "Hub.1107.DisableGroups=bool=true" \
   "Hub.1107.DisableRecordings=bool=true" "Startup.DisableWaitForLoad=bool=true"
