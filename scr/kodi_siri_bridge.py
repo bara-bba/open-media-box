@@ -107,6 +107,9 @@ def _find_device_path():
 BATTERY_DEV = _find_device_path()
 BATTERY_INTERVAL = 120
 BATTERY_LOW = 20
+BATTERY_CRITICAL = 10
+CRITICAL_REPEAT = 1800                          # re-warn this often while critical
+BATTERY_FILE = "/var/lib/kodi-siri-bridge/battery"   # last known level (survives restarts)
 MODE_INTERVAL = 1.0     # how often to re-check what's on screen
 
 # Reconnect watchdog: if the remote drops (out of range / sleep), BlueZ does
@@ -375,6 +378,7 @@ def try_reconnect(rstate):
         if not rstate["connected"]:
             print(f"remote {REMOTE_MAC} reconnected", flush=True)
             notify("Siri Remote", "Connected", "link.png")
+            rstate["just_up"] = True
             settled = (now - rstate["started_at"]) >= BOND_SETTLE_SECS
             if rstate["need_rearm"] and settled:
                 rstate["need_rearm"] = False
@@ -413,17 +417,51 @@ def notify(title, message, icon=None, seconds=4):
     kodi_rpc("GUI.ShowNotification", params)
 
 
+def load_last_battery():
+    try:
+        with open(BATTERY_FILE) as f:
+            return int(f.read().strip())
+    except Exception:                              # noqa: BLE001
+        return None
+
+
+def save_last_battery(pct):
+    try:
+        os.makedirs(os.path.dirname(BATTERY_FILE), exist_ok=True)
+        with open(BATTERY_FILE, "w") as f:
+            f.write(str(pct))
+    except OSError:
+        pass
+
+
 def update_battery(bstate):
-    pct = read_battery()
+    """Publish the level to the header (and warn). When the remote is asleep
+    or Kodi just restarted, the last known level is shown instead of nothing."""
+    fresh = read_battery()
+    bstate["stale"] = fresh is None
+    pct = fresh if fresh is not None else bstate.get("last")
     if pct is None:
         return
+    if fresh is not None and fresh != bstate.get("last"):
+        bstate["last"] = fresh
+        save_last_battery(fresh)
     kodi_builtin(f"SetProperty(SiriRemoteBattery,{pct}%,home)")
     kodi_builtin(f"SetProperty(SiriRemoteBatteryLevel,{pct},home)")
-    if pct <= BATTERY_LOW and not bstate["warned"]:
-        notify("Siri Remote", f"Battery low: {pct}%",
-               "battery-quarter.png", seconds=8)
+    if fresh is None:
+        return                                     # only warn on a live reading
+    now = time.monotonic()
+    if fresh <= BATTERY_CRITICAL:
+        if now - bstate.get("critical_at", -CRITICAL_REPEAT) >= CRITICAL_REPEAT:
+            bstate["critical_at"] = now
+            notify("Siri Remote", f"Battery critical: {fresh}% - charge it now",
+                   "battery-empty.png", seconds=12)
         bstate["warned"] = True
-    elif pct > BATTERY_LOW + 5:
+    elif fresh <= BATTERY_LOW:
+        if not bstate["warned"]:
+            notify("Siri Remote", f"Battery low: {fresh}%",
+                   "battery-quarter.png", seconds=8)
+            bstate["warned"] = True
+    elif fresh > BATTERY_LOW + 5:
         bstate["warned"] = False
 
 
@@ -460,7 +498,7 @@ def main():
     buf = b""
     cur_handle = None
     state = {"held": None, "held_action": None, "next_fire": 0.0}
-    bstate = {"warned": False}
+    bstate = {"warned": False, "stale": False, "last": load_last_battery()}
     mstate = {"mode": "gui", "next": 0.0}
     # need_rearm starts False: never cycle the link at startup. Doing so on a
     # bond created moments earlier permanently breaks it (see try_reconnect).
@@ -482,9 +520,14 @@ def main():
         if now - last_batt >= BATTERY_INTERVAL:
             last_batt = now
             update_battery(bstate)
+            if bstate["stale"] and rstate["connected"]:
+                last_batt = now - BATTERY_INTERVAL + 15   # link just came up: retry soon
         if now - last_reconnect >= RECONNECT_INTERVAL:
             last_reconnect = now
             try_reconnect(rstate)
+            if rstate.pop("just_up", False):       # re-warn once per connection
+                bstate["warned"] = False
+                last_batt = 0.0
         if now >= mstate["next"]:
             mstate["next"] = now + MODE_INTERVAL
             m = get_mode()
