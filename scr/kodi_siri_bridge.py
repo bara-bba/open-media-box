@@ -108,6 +108,7 @@ BATTERY_DEV = _find_device_path()
 BATTERY_INTERVAL = 120
 BATTERY_LOW = 20
 BATTERY_CRITICAL = 10
+CHARGING_HOLD = 900                             # seconds a rising level counts as "charging"
 CRITICAL_REPEAT = 1800                          # re-warn this often while critical
 BATTERY_FILE = "/var/lib/kodi-siri-bridge/battery"   # last known level (survives restarts)
 MODE_INTERVAL = 1.0     # how often to re-check what's on screen
@@ -450,10 +451,19 @@ def update_battery(bstate):
     if fresh is None:
         return                                     # only warn on a live reading
     now = time.monotonic()
+    # BlueZ exposes no charging flag, so infer it: a rising level means the
+    # remote is on the charger -> no warnings until it has been falling a while.
+    prev = bstate.get("prev")
+    bstate["prev"] = fresh
+    if prev is not None and fresh > prev:
+        bstate["charging_until"] = now + CHARGING_HOLD
+    if now < bstate.get("charging_until", 0):
+        bstate["warned"] = False
+        return
     if fresh <= BATTERY_CRITICAL:
         if now - bstate.get("critical_at", -CRITICAL_REPEAT) >= CRITICAL_REPEAT:
             bstate["critical_at"] = now
-            notify("Siri Remote", f"Battery critical: {fresh}% - charge it now",
+            notify("Siri Remote", f"Battery critical: {fresh}%",
                    "battery-empty.png", seconds=12)
         bstate["warned"] = True
     elif fresh <= BATTERY_LOW:

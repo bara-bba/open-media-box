@@ -10,12 +10,27 @@
             <top>40</top>
             <width>900</width>
             <height>80</height>
+            <!-- fully rounded pill: two end caps + a bar -->
             <control type="image">
                 <left>0</left>
                 <top>0</top>
-                <width>900</width>
+                <width>80</width>
                 <height>80</height>
-                <texture border="30" colordiffuse="FFFFFFFF">common/box.png</texture>
+                <texture colordiffuse="FFFFFFFF">common/circle.png</texture>
+            </control>
+            <control type="image">
+                <left>820</left>
+                <top>0</top>
+                <width>80</width>
+                <height>80</height>
+                <texture colordiffuse="FFFFFFFF">common/circle.png</texture>
+            </control>
+            <control type="image">
+                <left>40</left>
+                <top>0</top>
+                <width>820</width>
+                <height>80</height>
+                <texture colordiffuse="FFFFFFFF">common/white.png</texture>
             </control>
             <control type="image" id="400">
                 <left>24</left>
@@ -28,7 +43,7 @@
             <control type="label" id="401">
                 <left>90</left>
                 <top>0</top>
-                <width>270</width>
+                <width>220</width>
                 <height>80</height>
                 <aligny>center</aligny>
                 <font>font_midi_bold</font>
@@ -36,9 +51,9 @@
                 <scroll>true</scroll>
             </control>
             <control type="label" id="402">
-                <left>370</left>
+                <left>320</left>
                 <top>0</top>
-                <width>510</width>
+                <width>560</width>
                 <height>80</height>
                 <aligny>center</aligny>
                 <font>font_midi</font>
