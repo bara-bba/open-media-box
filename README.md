@@ -239,6 +239,8 @@ keep add-on auto-update off for Arctic Fuse 3, YouTube, Spotify and TMDb Helper.
 Screenshots: ![IPTV](docs/screenshots/iptv.png) ![YouTube](docs/screenshots/youtube.png)
 ![Spotify](docs/screenshots/spotify.png)
 
+Remote battery alerts (simulated): ![low](docs/screenshots/bat_low.png) ![critical](docs/screenshots/bat_crit.png)
+
 ## Services
 ```bash
 systemctl status kodi kodi-siri-bridge shairport-sync bt-fix avahi-daemon
