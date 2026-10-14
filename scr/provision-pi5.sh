@@ -362,6 +362,17 @@ chown -R "$USER_NAME:$USER_NAME" "$KODI_ADDONS" "$KODI_USERDATA"
 # IPTV (e.g. Dispatcharr M3U + EPG) feeds the PVR client; set the two URLs in
 # .env (IPTV_M3U_URL / IPTV_EPG_URL) or in the PVR add-on after first boot.
 
+# Keep the patched add-ons from being overwritten: notify about updates, never install them.
+krpc '{"jsonrpc":"2.0","id":1,"method":"Settings.SetSettingValue","params":{"setting":"general.addonupdates","value":1}}' >/dev/null 2>&1 || true
+sed -i 's#<setting id="general.addonupdates"[^>]*>[^<]*</setting>#<setting id="general.addonupdates" default="false">1</setting>#' "$GS" 2>/dev/null || true
+
+# Persistent (size-capped) journal so a crash/outage can still be diagnosed after reboot.
+mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]
+Storage=persistent
+SystemMaxUse=50M
+' > /etc/systemd/journald.conf.d/boxy.conf
+
 # Boot splash: paint the boxy image on the framebuffer before systemd starts
 # anything, hide the text console (no kernel log, no cursor).
 if [ -f "$PATCHES/../../assets/boxy-splash.jpg" ]; then
