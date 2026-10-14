@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- boxy: toast = white pill with black text, drawn over the header status bar (top right) -->
+<window>
+    <zorder>1000</zorder>
+    <animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
+    <animation effect="fade" start="100" end="0" time="300">WindowClose</animation>
+    <controls>
+        <control type="group">
+            <right>80</right>
+            <top>40</top>
+            <width>900</width>
+            <height>80</height>
+            <control type="image">
+                <left>0</left>
+                <top>0</top>
+                <width>900</width>
+                <height>80</height>
+                <texture border="30" colordiffuse="FFFFFFFF">common/box.png</texture>
+            </control>
+            <control type="image" id="400">
+                <left>24</left>
+                <top>16</top>
+                <width>48</width>
+                <height>48</height>
+                <aspectratio>keep</aspectratio>
+                <colordiffuse>FF000000</colordiffuse>
+            </control>
+            <control type="label" id="401">
+                <left>90</left>
+                <top>0</top>
+                <width>270</width>
+                <height>80</height>
+                <aligny>center</aligny>
+                <font>font_midi_bold</font>
+                <textcolor>FF000000</textcolor>
+                <scroll>true</scroll>
+            </control>
+            <control type="label" id="402">
+                <left>370</left>
+                <top>0</top>
+                <width>510</width>
+                <height>80</height>
+                <aligny>center</aligny>
+                <font>font_midi</font>
+                <textcolor>FF000000</textcolor>
+                <scroll>true</scroll>
+            </control>
+        </control>
+    </controls>
+</window>
