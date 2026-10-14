@@ -1,56 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- boxy: toast = compact white pill, black text, right-aligned on top of the header
-     status bar (covers it completely while shown) and above every other window -->
+<!-- boxy: toast = white pill, black text, right-aligned exactly over the header status
+     bar (wide enough to cover it completely) and above every other window -->
 <window>
     <zorder>2000</zorder>
     <animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
     <animation effect="fade" start="100" end="0" time="300">WindowClose</animation>
     <controls>
         <control type="group">
-            <right>70</right>
+            <right>80</right>
             <top>46</top>
-            <width>620</width>
+            <width>580</width>
             <height>68</height>
             <!-- fully rounded pill: two end caps + a bar -->
             <control type="image">
-                <left>0</left>
-                <top>0</top>
-                <width>68</width>
-                <height>68</height>
+                <left>0</left><top>0</top><width>68</width><height>68</height>
                 <texture colordiffuse="FFFFFFFF">common/circle.png</texture>
             </control>
             <control type="image">
-                <left>552</left>
-                <top>0</top>
-                <width>68</width>
-                <height>68</height>
+                <left>512</left><top>0</top><width>68</width><height>68</height>
                 <texture colordiffuse="FFFFFFFF">common/circle.png</texture>
             </control>
             <control type="image">
-                <left>34</left>
-                <top>0</top>
-                <width>552</width>
-                <height>68</height>
+                <left>34</left><top>0</top><width>512</width><height>68</height>
                 <texture colordiffuse="FFFFFFFF">common/white.png</texture>
             </control>
             <control type="image" id="400">
-                <left>22</left>
-                <top>16</top>
-                <width>36</width>
-                <height>36</height>
+                <left>24</left><top>16</top><width>36</width><height>36</height>
                 <aspectratio>keep</aspectratio>
                 <colordiffuse>FF000000</colordiffuse>
             </control>
             <control type="label">
-                <left>72</left>
+                <left>74</left>
                 <top>0</top>
-                <width>520</width>
+                <width>160</width>
                 <height>68</height>
                 <aligny>center</aligny>
                 <font>font_mini</font>
                 <textcolor>FF000000</textcolor>
+                <label>[B]$INFO[Control.GetLabel(401)][/B]</label>
+            </control>
+            <!-- message centred in the white space right of the title -->
+            <control type="label">
+                <left>234</left>
+                <top>0</top>
+                <width>312</width>
+                <height>68</height>
+                <align>center</align>
+                <aligny>center</aligny>
+                <font>font_mini</font>
+                <textcolor>FF000000</textcolor>
                 <scroll>true</scroll>
-                <label>$INFO[Control.GetLabel(401),[B],[/B]   ]$INFO[Control.GetLabel(402)]</label>
+                <label>$INFO[Control.GetLabel(402)]</label>
             </control>
         </control>
         <control type="label" id="401">
