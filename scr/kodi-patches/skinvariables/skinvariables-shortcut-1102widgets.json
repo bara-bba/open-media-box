@@ -1,7 +1,7 @@
 [
     {
         "label": "Recommendations",
-        "path": "plugin://plugin.video.youtube/special/recommendations?category_label=Recommendations",
+        "path": "plugin://plugin.video.youtube/special/recommendations?category_label=Recommendations&r=$INFO[Window(Home).Property(YTReload)]",
         "icon": "image://special%3a%2f%2fhome%2faddons%2fplugin.video.youtube%2fresources%2fmedia%2fhome.png/",
         "target": "videos",
         "guid": "guid-27806424",
