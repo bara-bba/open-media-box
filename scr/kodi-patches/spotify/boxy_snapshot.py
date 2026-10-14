@@ -8,6 +8,7 @@ snapshot straight away (no network, no auth), and a background run of the same U
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -41,6 +42,8 @@ def _path(key: str, suffix: str = ".json") -> str:
 
 
 def _key(argv2: str) -> str:
+    # the skin appends &r=<SpReload> to widget URLs so they re-fetch; it is not part of the identity
+    argv2 = re.sub(r"&r=[^&]*", "", argv2)
     return argv2.replace("&" + REFRESH_FLAG, "").replace(REFRESH_FLAG, "")
 
 
@@ -188,6 +191,8 @@ def _store(rec: _Recorder) -> None:
             json.dump({"key": rec.key, "ops": rec.ops}, f)
         os.replace(tmp, path)
         log_msg(f"Snapshot {'updated' if old else 'created'} ({rec.items} items): {rec.key}")
+        if old:                                    # a visible row changed: make the skin widgets re-fetch
+            xbmcgui.Window(10000).setProperty("SpReload", str(int(time.time())))
     except Exception as exc:  # never break a listing over caching
         log_msg(f"Snapshot store failed: {exc}")
 

@@ -316,7 +316,7 @@ put(){ # put <src> <dest-dir>   (skipped if the add-on isn't installed yet)
   else echo "  skip $1 ($2 not installed)"; fi
 }
 SKIN="$KODI_ADDONS/skin.arctic.fuse.3/1080i"
-for f in Custom_1198_Dialog_Startup.xml Custom_1101_Hub.xml Custom_1102_Hub.xml Includes_LiveTV.xml Includes_Hubs.xml DialogNotification.xml; do put skin/$f "$SKIN"; done
+for f in Custom_1198_Dialog_Startup.xml Custom_1101_Hub.xml Custom_1102_Hub.xml Custom_1103_Hub.xml Includes_LiveTV.xml Includes_Hubs.xml DialogNotification.xml; do put skin/$f "$SKIN"; done
 put skin/ytsearch.py "$KODI_ADDONS/skin.arctic.fuse.3"   # YouTube tab click: search prompt
 SPOT="$KODI_ADDONS/plugin.audio.spotify/resources/lib"
 for f in boxy_snapshot.py plugin_content.py spotty_auth.py main_service.py; do put spotify/$f "$SPOT"; done

@@ -1,0 +1,38 @@
+[
+    {
+        "label": "Realizzata per te",
+        "path": "plugin://plugin.audio.spotify/?action=browse_category&applyfilter=0JQ5DAt0tbjZptfcdMSKl3&r=$INFO[Window(Home).Property(SpReload)]$INFO[Window(Home).Property(SpHour)]",
+        "icon": "special://skin/extras/icons/rocket2.png",
+        "target": "music",
+        "guid": "guid-e23f21ae",
+        "widget_style": "Square",
+        "widget_limit": "20"
+    },
+    {
+        "label": "New Releases",
+        "path": "plugin://plugin.audio.spotify/?action=browse_new_releases&r=$INFO[Window(Home).Property(SpReload)]$INFO[Window(Home).Property(SpHour)]",
+        "icon": "image://%2fhome%2fbarbara%2f.kodi%2faddons%2fplugin.audio.spotify%2fresources%2ficon_music_explore.png/",
+        "target": "music",
+        "guid": "guid-nr391a2c",
+        "widget_style": "Square",
+        "widget_limit": "20"
+    },
+    {
+        "label": "Playlists",
+        "path": "plugin://plugin.audio.spotify/?action=browse_playlists&ownerid=1169742416&r=$INFO[Window(Home).Property(SpReload)]$INFO[Window(Home).Property(SpHour)]",
+        "icon": "image://%2fhome%2fbarbara%2f.kodi%2faddons%2fplugin.audio.spotify%2fresources%2ficon_music_playlists.png/",
+        "target": "music",
+        "guid": "guid-446589a2",
+        "widget_style": "Square",
+        "widget_limit": "20"
+    },
+    {
+        "label": "Followed artists",
+        "path": "plugin://plugin.audio.spotify/?action=browse_followed_artists&r=$INFO[Window(Home).Property(SpReload)]$INFO[Window(Home).Property(SpHour)]",
+        "icon": "special://skin/extras/icons/controlpanel.png",
+        "target": "music",
+        "guid": "guid-a87dddf5",
+        "widget_style": "Square",
+        "widget_limit": "20"
+    }
+]

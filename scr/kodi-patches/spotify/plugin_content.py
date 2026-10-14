@@ -1392,8 +1392,8 @@ class PluginContent:
         followed_playlists = self.__get_curuser_playlistids()
 
         for playlist in playlists:
-            if not playlist:
-                continue
+            if not playlist or not playlist.get("id") or not playlist.get("name"):
+                continue                     # boxy: Spotify sometimes returns an empty placeholder entry
 
             if playlist.get("images"):
                 playlist["thumb"] = playlist["images"][0]["url"]

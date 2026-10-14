@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window type="window" id="1103">
+    <include content="Hub_Onload">
+        <param name="window_id">1103</param>
+    </include>
+    <!-- boxy: new content URL each hour => Spotify rows re-run (snapshot replay + background refresh) when you open the tab -->
+    <onload>SetProperty(SpHour,$INFO[System.Date(yyyymmdd)]$INFO[System.Time(hh)]$INFO[System.Time(xx)],Home)</onload>
+    <controls>
+        <include content="Hub_Window">
+            <param name="window">1103</param>
+        </include>
+    </controls>
+</window>
