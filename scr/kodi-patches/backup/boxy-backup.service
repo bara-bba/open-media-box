@@ -1,0 +1,8 @@
+[Unit]
+Description=boxy settings/logins backup (USB "BOXYBACKUP" or /var/backups/boxy)
+
+[Service]
+Type=oneshot
+Nice=10
+IOSchedulingClass=idle
+ExecStart=/usr/local/bin/boxy-backup.sh

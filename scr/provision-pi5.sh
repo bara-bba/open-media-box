@@ -374,6 +374,12 @@ Storage=persistent
 SystemMaxUse=50M
 ' > /etc/systemd/journald.conf.d/boxy.conf
 
+# Weekly backup of logins + settings: to a USB stick labelled BOXYBACKUP if
+# plugged in, else /var/backups/boxy. Restore = untar -C / and restart Kodi.
+install -m 755 "$PATCHES/backup/boxy-backup.sh" /usr/local/bin/boxy-backup.sh
+install -m 644 "$PATCHES/backup/boxy-backup.service" "$PATCHES/backup/boxy-backup.timer" /etc/systemd/system/
+systemctl daemon-reload; systemctl enable boxy-backup.timer
+
 # Boot splash: paint the boxy image on the framebuffer before systemd starts
 # anything, hide the text console (no kernel log, no cursor).
 if [ -f "$PATCHES/../../assets/boxy-splash.jpg" ]; then
