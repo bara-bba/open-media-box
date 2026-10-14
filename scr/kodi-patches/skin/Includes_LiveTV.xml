@@ -45,6 +45,108 @@
         </item>
     </include>
 
+    <!-- boxy: channel tile that also shows what is on now (EPG title) -->
+    <include name="Layout_Square_PVR">
+        <param name="diffuse">diffuse/square_w217_h217.png</param>
+        <param name="selected">false</param>
+        <param name="detailed">false</param>
+        <param name="icon">$VAR[Image_Square]</param>
+        <param name="listitem">ListItem</param>
+        <param name="textcolor">main_fg</param>
+        <param name="affix" />
+        <definition>
+            <control type="group">
+                <width>$PARAM[item_w]</width>
+                <height>$PARAM[item_h]</height>
+                <control type="group">
+                    <height>$PARAM[item_h]</height>
+                    <include content="Object_ItemBack">
+                        <param name="selected">$PARAM[selected]</param>
+                        <param name="shadow_colordiffuse">$PARAM[shadow_colordiffuse]</param>
+                    </include>
+                    <include content="Object_Control" condition="$PARAM[selected]">
+                        <param name="control">image</param>
+                        <include>Texture_Box_Highlight_V</include>
+                    </include>
+                    <include content="Object_Layout_Image_Icon">
+                        <param name="selected">$PARAM[selected]</param>
+                        <param name="diffuse">$PARAM[diffuse]</param>
+                        <param name="icon">$PARAM[icon]</param>
+                        <param name="listitem">$PARAM[listitem]</param>
+                        <param name="icon_diffuse">$PARAM[diffuse]</param>
+                    </include>
+                    <include content="Object_ProgressLine">
+                        <param name="progress">$PARAM[listitem].Progress</param>
+                    </include>
+                    <include content="Object_Indicator" condition="!$PARAM[selected]">
+                        <param name="affix">$PARAM[affix]</param>
+                        <param name="listitem">$PARAM[listitem]</param>
+                    </include>
+                    <include content="Object_SelectBox" condition="$PARAM[selected]">
+                        <param name="affix">$PARAM[affix]</param>
+                        <param name="indicator">true</param>
+                        <param name="focusbounce">true</param>
+                        <param name="listitem">$PARAM[listitem]</param>
+                    </include>
+                </control>
+                <control type="group">
+                    <top>$PARAM[item_h]</top>
+                    <control type="label">
+                        <top>36</top>
+                        <left>0</left>
+                        <right>10</right>
+                        <height>30</height>
+                        <font>font_mini_bold</font>
+                        <aligny>center</aligny>
+                        <textcolor>main_fg_70</textcolor>
+                        <include condition="$PARAM[selected]">Color_SelectedText</include>
+                        <label>$INFO[ListItem.Label]</label>
+                    </control>
+                    <control type="label">
+                        <top>66</top>
+                        <left>0</left>
+                        <right>10</right>
+                        <height>30</height>
+                        <font>font_mini</font>
+                        <aligny>center</aligny>
+                        <textcolor>main_fg_70</textcolor>
+                        <include condition="$PARAM[selected]">Color_SelectedText</include>
+                        <label>$INFO[ListItem.EpgEventTitle]</label>
+                    </control>
+                </control>
+            </control>
+        </definition>
+    </include>
+
+    <include name="List_Square_Row_PVR">
+        <param name="item_w">view_poster_item_w</param>
+        <param name="item_h">view_poster_item_w</param>
+        <param name="itemlayout_w">view_poster_itemlayout_w</param>
+        <param name="itemlayout_h">view_poster_itemlayout_h</param>
+        <param name="orientation">horizontal</param>
+        <param name="use_movement">true</param>
+        <param name="control">fixedlist</param>
+        <definition>
+            <include content="List_Core">
+                <param name="orientation">$PARAM[orientation]</param>
+                <param name="control">$PARAM[control]</param>
+                <param name="id">$PARAM[id]</param>
+                <param name="item_w">$PARAM[item_w]</param>
+                <param name="item_h">$PARAM[item_h]</param>
+                <param name="itemlayout_w">$PARAM[itemlayout_w]</param>
+                <param name="itemlayout_h">$PARAM[itemlayout_h]</param>
+                <param name="offset_x">$PARAM[offset_x]</param>
+                <param name="offset_y">$PARAM[offset_y]</param>
+                <param name="variation">$PARAM[variation]</param>
+                <param name="itemlayout_include">Layout_Square_PVR</param>
+                <param name="hidden_button_enabled">$PARAM[hidden_button_enabled]</param>
+                <param name="hidden_button">$PARAM[hidden_button]</param>
+                <include condition="$PARAM[use_movement]">List_Poster_Row_Movement</include>
+                <nested />
+            </include>
+        </definition>
+    </include>
+
     <include name="LiveTV_Wall_Widgets">
         <param name="include">Hub_Wall_Widget</param>
         <definition>
@@ -62,7 +164,7 @@
                 <param name="id">502</param>
                 <param name="target">tvchannels</param>
                 <param name="content">$INFO[Container(509).ListItemAbsolute(0).FolderPath]</param>
-                <param name="include">List_Square_Row</param>
+                <param name="include">List_Square_Row_PVR</param>
                 <param name="visible">String.IsEqual(Container(601).ListItem.Property(guid),pvr-502)</param>
                 <param name="home_switcher">false</param>
             </include>
