@@ -4,25 +4,17 @@
 <window>
     <zorder>2000</zorder>
     <animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
-    <animation effect="fade" start="100" end="0" time="300">WindowClose</animation>
+    <animation effect="fade" start="100" end="0" time="350" tween="sine" easing="out">WindowClose</animation>
     <controls>
         <control type="group">
             <right>80</right>
             <top>46</top>
             <width>580</width>
             <height>68</height>
-            <!-- fully rounded pill: two end caps + a bar -->
+            <!-- one pill image (two overlapping/adjacent pieces showed a seam while fading) -->
             <control type="image">
-                <left>0</left><top>0</top><width>68</width><height>68</height>
-                <texture colordiffuse="FFFFFFFF">common/circle.png</texture>
-            </control>
-            <control type="image">
-                <left>512</left><top>0</top><width>68</width><height>68</height>
-                <texture colordiffuse="FFFFFFFF">common/circle.png</texture>
-            </control>
-            <control type="image">
-                <left>34</left><top>0</top><width>512</width><height>68</height>
-                <texture colordiffuse="FFFFFFFF">common/white.png</texture>
+                <left>0</left><top>0</top><width>580</width><height>68</height>
+                <texture border="34">common/boxy_toast_pill.png</texture>
             </control>
             <control type="image" id="400">
                 <left>24</left><top>16</top><width>36</width><height>36</height>

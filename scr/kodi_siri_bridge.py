@@ -56,6 +56,13 @@ VIDEO_BUTTONS = {
     # playpause / volume / mute / power inherit from NAV_BUTTONS
 }
 
+# --- live TV (PVR) overrides: left/right zap channels instead of seeking -------
+LIVETV_BUTTONS = {
+    0x0004: ("rpc", "Input.ExecuteAction", {"action": "channelup"}),     # Right -> next channel
+    0x0010: ("rpc", "Input.ExecuteAction", {"action": "channeldown"}),   # Left  -> previous channel
+}
+NO_REPEAT_LIVETV = {0x0004, 0x0010}   # one press = one channel (each zap opens a stream)
+
 # auto-repeat while held (volume + d-pad seek/navigate)
 REPEATABLE = {0x0200, 0x0400, 0x0002, 0x0008, 0x0004, 0x0010}
 INITIAL_DELAY = 0.35
@@ -167,7 +174,11 @@ def dispatch(action):
 
 def resolve(code, mode):
     """Pick the action for a button given the on-screen context."""
-    if mode == "video":
+    if mode == "livetv":
+        a = LIVETV_BUTTONS.get(code)
+        if a:
+            return a
+    if mode in ("video", "livetv"):
         a = VIDEO_BUTTONS.get(code)
         if a:
             return a
@@ -182,6 +193,10 @@ def get_mode():
     except (TypeError, KeyError):
         return None
     if wid == WIN_FULLSCREEN_VIDEO:
+        b = kodi_rpc("XBMC.GetInfoBooleans", {"booleans": ["PVR.IsPlayingTV"]},
+                     want_result=True)
+        if b and b.get("PVR.IsPlayingTV"):
+            return "livetv"
         return "video"
     if wid == WIN_FULLSCREEN_OSD:
         return "osd"
@@ -481,7 +496,7 @@ def handle_code(code, state, mode):
         state["held_action"] = None
         return
     action = resolve(code, mode)
-    if code in REPEATABLE:
+    if code in REPEATABLE and not (mode == "livetv" and code in NO_REPEAT_LIVETV):
         if state["held"] != code:                  # new press -> fire once, arm repeat
             state["held"] = code
             state["held_action"] = action

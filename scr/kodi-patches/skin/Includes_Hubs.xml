@@ -98,6 +98,7 @@
                     <preloaditems>0</preloaditems>
                     <top>290</top>
                     <bottom>-40</bottom>
+                    <onup condition="[Window.IsVisible(1101) | Window.IsVisible(1102)]">300</onup>
                     <onup>601</onup>
                     <include>$PARAM[include_action]</include>
                     <include>Hub_Grouplist_OnLeftRight</include>
@@ -105,7 +106,7 @@
                     <include content="Action_Widget_OnBack">
                         <param name="id">$PARAM[id]</param>
                         <param name="grouplistid">500</param>
-                        <param name="refocus">SetFocus(601)</param>
+                        <param name="refocus">$VAR[Hub_Wall_Refocus]</param>
                         <param name="enable">!Player.HasMedia</param>
                     </include>
 
@@ -197,8 +198,8 @@
                 <top>$PARAM[top]</top>
                 <height>40</height>
                 <include condition="$PARAM[wall]">Hub_Spotlight_Content_Slide</include>
-                <!-- boxy: YouTube hub has a single wall, hide its title chip (still focusable for up-navigation) -->
-                <animation effect="fade" start="100" end="0" time="0" condition="Window.IsVisible(1102)">Conditional</animation>
+                <!-- boxy: YouTube + IPTV hubs have a single wall, hide its title chip (still focusable for up-navigation) -->
+                <animation effect="fade" start="100" end="0" time="0" condition="Window.IsVisible(1102) | Window.IsVisible(1101)">Conditional</animation>
                 <control type="group">
                     <left>view_pad</left>
                     <include>View_Line_Divider</include>
@@ -544,7 +545,13 @@
         </definition>
     </include>
 
+    <variable name="Hub_Wall_Refocus">
+        <value condition="Window.IsVisible(1101) | Window.IsVisible(1102)">SetFocus(300)</value>
+        <value>SetFocus(601)</value>
+    </variable>
     <variable name="Hub_Action_Down">
+        <value condition="Window.IsVisible(1102) + Control.IsVisible(501)">SetFocus(501)</value>
+        <value condition="Window.IsVisible(1101) + Control.IsVisible(502)">SetFocus(502)</value>
         <value condition="Control.IsVisible(301)">SetFocus(310)</value>
         <value condition="Control.IsVisible(601)">SetFocus(601)</value>
         <value condition="Control.IsVisible(602)">SetFocus(602)</value>
@@ -562,6 +569,8 @@
         <value condition="Control.IsVisible(510)">SetFocus(510)</value>
     </variable>
     <variable name="Hub_Action_Widgets">
+        <value condition="Window.IsVisible(1102) + Control.IsVisible(501)">SetFocus(501)</value>
+        <value condition="Window.IsVisible(1101) + Control.IsVisible(502)">SetFocus(502)</value>
         <value condition="Control.IsVisible(601)">SetFocus(601)</value>
         <value condition="Control.IsVisible(501)">SetFocus(501)</value>
         <value condition="Control.IsVisible(502)">SetFocus(502)</value>
