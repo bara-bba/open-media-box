@@ -1,5 +1,7 @@
 [Unit]
-Description=boxy settings/logins backup (USB "BOXYBACKUP" or /var/backups/boxy)
+Description=boxy settings/logins backup (NAS over NFS, SD card fallback)
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=oneshot

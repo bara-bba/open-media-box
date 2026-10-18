@@ -51,7 +51,7 @@ apt-get -y install \
   kodi kodi-inputstream-adaptive kodi-inputstream-ffmpegdirect \
   kodi-eventclients-kodi-send kodi-pvr-iptvsimple \
   shairport-sync avahi-utils rfkill evtest \
-  bluez libopus0 ffmpeg python3-venv git curl
+  bluez libopus0 ffmpeg python3-venv git curl nfs-common
 
 # NOTE: Spotify is NOT raspotify anymore — it's the in-Kodi
 # plugin.audio.spotify addon (glk1001 fork), installed manually. See the
@@ -426,8 +426,9 @@ Storage=persistent
 SystemMaxUse=50M
 ' > /etc/systemd/journald.conf.d/boxy.conf
 
-# Weekly backup of logins + settings: to a USB stick labelled BOXYBACKUP if
-# plugged in, else /var/backups/boxy. Restore = untar -C / and restart Kodi.
+# Weekly backup of logins + settings to the NAS over NFS (192.168.1.61:/mnt/main/backups/boxy,
+# exported only to boxy, maproot -> boxy-backup, mode 750; override with BOXY_BACKUP_NAS),
+# falling back to /var/backups/boxy. Restore = untar -C / and restart Kodi.
 install -m 755 "$PATCHES/backup/boxy-backup.sh" /usr/local/bin/boxy-backup.sh
 install -m 644 "$PATCHES/backup/boxy-backup.service" "$PATCHES/backup/boxy-backup.timer" /etc/systemd/system/
 systemctl daemon-reload; systemctl enable boxy-backup.timer

@@ -13,10 +13,22 @@ gw=$(ip route show default 2>/dev/null | awk '/^default/ {print $3; exit}')
 dev=$(ip route show default 2>/dev/null | awk '/^default/ {print $5; exit}')
 # header icon: exactly one of wifi / ethernet / down (shown by the skin via Window(Home).Property(NetType))
 publish(){ kodi-send --action="SetProperty(NetType,$1,home)" >/dev/null 2>&1; }
+# The YouTube add-on caches "no internet"/empty results; after an outage it can stay
+# "not logged in" until those caches are cleared. Clear them (cache only, sign-in is kept).
+clear_youtube_cache(){
+  for db in /home/*/.kodi/userdata/addon_data/plugin.video.youtube/*/cache.sqlite             /home/*/.kodi/userdata/addon_data/plugin.video.youtube/*/data_cache.sqlite; do
+    [ -f "$db" ] && python3 -c "import sqlite3,sys; c=sqlite3.connect(sys.argv[1],timeout=20); c.execute('delete from storage_v2'); c.commit()" "$db" 2>/dev/null
+  done
+  logger -t boxy-netwatch "cleared YouTube caches ($1)"
+}
 if [ -n "$gw" ] && ping -c1 -W3 "$gw" >/dev/null 2>&1; then
   case "$dev" in e*) publish ethernet ;; w*) publish wifi ;; *) publish down ;; esac
-  [ "$(cat "$STATE/fails" 2>/dev/null || echo 0)" != 0 ] && logger -t boxy-netwatch "network is back"
-  echo 0 > "$STATE/fails"; exit 0
+  if [ "$(cat "$STATE/fails" 2>/dev/null || echo 0)" != 0 ]; then
+    logger -t boxy-netwatch "network is back"; clear_youtube_cache "network back"
+  elif [ ! -e "$STATE/booted" ]; then
+    clear_youtube_cache "first check after boot"
+  fi
+  touch "$STATE/booted"; echo 0 > "$STATE/fails"; exit 0
 fi
 publish down
 
