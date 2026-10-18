@@ -1,0 +1,6 @@
+[Unit]
+Description=boxy Wi-Fi watchdog (reconnect / restart / reboot when the gateway is unreachable)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/boxy-netwatch.sh

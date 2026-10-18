@@ -1,0 +1,56 @@
+            <control type="grouplist">
+                <right>0</right><top>0</top><width>760</width><height>80</height>
+                <align>right</align><orientation>horizontal</orientation><itemgap>0</itemgap>
+                <!-- boxy header: [battery ⚡ %]  [chip temp]  [time]  [network]; icons cropped to their glyph,
+                     spacing done with explicit spacers: 8 px icon->value, 30 px between groups -->
+                <control type="group"><width>46</width><height>80</height>
+                    <visible>!String.IsEmpty(Window(Home).Property(SiriRemoteBatteryLevel))</visible>
+                    <control type="image"><left>0</left><top>0</top><width>46</width><height>80</height>
+                        <aspectratio aligny="center">keep</aspectratio>
+                        <texture>$INFO[Window(Home).Property(SiriRemoteBatteryFill),special://skin/extras/icons/boxy_batt_,.png]</texture></control>
+                    <control type="image"><left>0</left><top>0</top><width>46</width><height>80</height>
+                        <aspectratio aligny="center">keep</aspectratio>
+                        <texture>special://skin/extras/icons/boxy_batt_outline.png</texture>
+                        <colordiffuse>$PARAM[textcolor]</colordiffuse></control>
+                </control>
+                <control type="image"><width>6</width><height>80</height><visible>!String.IsEmpty(Window(Home).Property(SiriRemoteCharging))</visible></control>
+                <control type="image"><width>16</width><height>80</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>special://skin/extras/icons/boxy_bolt.png</texture>
+                    <colordiffuse>$PARAM[textcolor]</colordiffuse>
+                    <visible>!String.IsEmpty(Window(Home).Property(SiriRemoteCharging))</visible></control>
+                <control type="image"><width>8</width><height>80</height><visible>!String.IsEmpty(Window(Home).Property(SiriRemoteBattery))</visible></control>
+                <control type="label"><width>auto</width><height>80</height>
+                    <label>$INFO[Window(Home).Property(SiriRemoteBattery)]</label>
+                    <aligny>center</aligny><textcolor>$PARAM[textcolor]</textcolor><font>font_midi_bold</font>
+                    <visible>!String.IsEmpty(Window(Home).Property(SiriRemoteBattery))</visible></control>
+                <control type="image"><width>30</width><height>80</height><visible>!String.IsEmpty(Window(Home).Property(SiriRemoteBattery))</visible></control>
+                <control type="image"><width>24</width><height>80</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>special://skin/extras/icons/boxy_chip.png</texture>
+                    <colordiffuse>$PARAM[textcolor]</colordiffuse></control>
+                <control type="image"><width>8</width><height>80</height></control>
+                <control type="label"><width>auto</width><height>80</height>
+                    <label>$INFO[System.CPUTemperature]</label>
+                    <aligny>center</aligny><textcolor>$PARAM[textcolor]</textcolor><font>font_midi_bold</font></control>
+                <control type="image"><width>30</width><height>80</height></control>
+                <control type="label"><width>auto</width><height>80</height>
+                    <label>$INFO[System.Time]</label>
+                    <aligny>center</aligny><textcolor>$PARAM[textcolor]</textcolor><font>font_midi_bold</font></control>
+                <control type="image"><width>30</width><height>80</height><visible>!String.IsEmpty(Window(Home).Property(NetType))</visible></control>
+                <control type="image"><width>30</width><height>80</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>special://skin/extras/icons/boxy_wifi.png</texture>
+                    <colordiffuse>$PARAM[textcolor]</colordiffuse>
+                    <visible>String.IsEqual(Window(Home).Property(NetType),wifi)</visible></control>
+                <control type="image"><width>28</width><height>80</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>special://skin/extras/icons/boxy_eth.png</texture>
+                    <colordiffuse>$PARAM[textcolor]</colordiffuse>
+                    <visible>String.IsEqual(Window(Home).Property(NetType),ethernet)</visible></control>
+                <control type="image"><width>26</width><height>80</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>special://skin/extras/icons/boxy_offline.png</texture>
+                    <colordiffuse>$PARAM[textcolor]</colordiffuse>
+                    <visible>String.IsEqual(Window(Home).Property(NetType),down)</visible></control>
+            </control>

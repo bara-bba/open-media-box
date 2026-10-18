@@ -450,6 +450,14 @@ def save_last_battery(pct):
         pass
 
 
+def battery_fill(pct, charging):
+    """Header battery fill image name: <colour>_<step>, step = level in 5 % units.
+    Apple style: green normally (and while charging), yellow when low, red when critical."""
+    color = "green" if charging or pct > BATTERY_LOW else ("yellow" if pct > BATTERY_CRITICAL else "red")
+    step = 0 if pct <= 0 else max(1, min(20, round(pct / 5)))
+    return f"{color}_{step}"
+
+
 def update_battery(bstate):
     """Publish the level to the header (and warn). When the remote is asleep
     or Kodi just restarted, the last known level is shown instead of nothing."""
@@ -461,30 +469,36 @@ def update_battery(bstate):
     if fresh is not None and fresh != bstate.get("last"):
         bstate["last"] = fresh
         save_last_battery(fresh)
-    kodi_builtin(f"SetProperty(SiriRemoteBattery,{pct}%,home)")
-    kodi_builtin(f"SetProperty(SiriRemoteBatteryLevel,{pct},home)")
-    if fresh is None:
-        return                                     # only warn on a live reading
     now = time.monotonic()
     # BlueZ exposes no charging flag, so infer it: a rising level means the
-    # remote is on the charger -> no warnings until it has been falling a while.
-    prev = bstate.get("prev")
-    bstate["prev"] = fresh
-    if prev is not None and fresh > prev:
-        bstate["charging_until"] = now + CHARGING_HOLD
-    if now < bstate.get("charging_until", 0):
+    # remote is on the charger (-> header bolt icon, and no warnings until the
+    # level has stopped rising for CHARGING_HOLD).
+    if fresh is not None:
+        prev = bstate.get("prev")
+        bstate["prev"] = fresh
+        if prev is not None and fresh > prev:
+            bstate["charging_until"] = now + CHARGING_HOLD
+    charging = now < bstate.get("charging_until", 0)
+    kodi_builtin(f"SetProperty(SiriRemoteBattery,{pct}%,home)")
+    kodi_builtin(f"SetProperty(SiriRemoteBatteryLevel,{pct},home)")
+    kodi_builtin(f"SetProperty(SiriRemoteBatteryFill,{battery_fill(pct, charging)},home)")
+    kodi_builtin("SetProperty(SiriRemoteCharging,1,home)" if charging
+                 else "ClearProperty(SiriRemoteCharging,home)")
+    if fresh is None:
+        return                                     # only warn on a live reading
+    if charging:
         bstate["warned"] = False
         return
     if fresh <= BATTERY_CRITICAL:
         if now - bstate.get("critical_at", -CRITICAL_REPEAT) >= CRITICAL_REPEAT:
             bstate["critical_at"] = now
             notify("Siri Remote", f"Battery critical: {fresh}%",
-                   "battery-empty.png", seconds=12)
+                   battery_fill(fresh, False) + ".png", seconds=12)
         bstate["warned"] = True
     elif fresh <= BATTERY_LOW:
         if not bstate["warned"]:
             notify("Siri Remote", f"Battery low: {fresh}%",
-                   "battery-quarter.png", seconds=8)
+                   battery_fill(fresh, False) + ".png", seconds=8)
             bstate["warned"] = True
     elif fresh > BATTERY_LOW + 5:
         bstate["warned"] = False

@@ -169,18 +169,43 @@ start=s.rindex('<control type="label">',0,i); end=s.index('</control>',i)+len('<
 gl='''<control type="grouplist">
                 <right>0</right><top>0</top><width>720</width><height>80</height>
                 <align>right</align><orientation>horizontal</orientation><itemgap>12</itemgap>
-                <control type="image"><width>64</width><height>80</height>
+                <control type="group"><width>46</width><height>80</height>
+                    <visible>!String.IsEmpty(Window(Home).Property(SiriRemoteBatteryLevel))</visible>
+                    <control type="image"><left>0</left><top>0</top><width>46</width><height>80</height>
+                        <aspectratio aligny="center">keep</aspectratio>
+                        <texture>$INFO[Window(Home).Property(SiriRemoteBatteryFill),special://skin/extras/icons/boxy_batt_,.png]</texture></control>
+                    <control type="image"><left>0</left><top>0</top><width>46</width><height>80</height>
+                        <aspectratio aligny="center">keep</aspectratio>
+                        <texture>special://skin/extras/icons/boxy_batt_outline.png</texture>
+                        <colordiffuse>$PARAM[textcolor]</colordiffuse></control>
+                </control>
+                <control type="image"><width>30</width><height>80</height>
                     <aspectratio aligny="center">keep</aspectratio>
-                    <texture>$VAR[Furniture_BatteryIcon]</texture>
+                    <texture>special://skin/extras/icons/bolt.png</texture>
                     <colordiffuse>$PARAM[textcolor]</colordiffuse>
-                    <visible>!String.IsEmpty(Window(Home).Property(SiriRemoteBatteryLevel))</visible></control>
+                    <visible>!String.IsEmpty(Window(Home).Property(SiriRemoteCharging))</visible></control>
                 <control type="label"><width>auto</width><height>80</height>
                     <label>$INFO[Window(Home).Property(SiriRemoteBattery)]</label>
                     <aligny>center</aligny><textcolor>$PARAM[textcolor]</textcolor><font>font_midi_bold</font>
                     <visible>!String.IsEmpty(Window(Home).Property(SiriRemoteBattery))</visible></control>
                 <control type="label"><width>auto</width><height>80</height>
-                    <label>$INFO[System.Time]$VAR[Furniture_Header_Right_Temperature, • ,]</label>
+                    <label>$INFO[System.Time]</label>
                     <aligny>center</aligny><textcolor>$PARAM[textcolor]</textcolor><font>font_midi_bold</font></control>
+                <control type="image"><width>40</width><height>80</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>special://skin/extras/icons/boxy_wifi.png</texture>
+                    <colordiffuse>$PARAM[textcolor]</colordiffuse>
+                    <visible>String.IsEqual(Window(Home).Property(NetType),wifi)</visible></control>
+                <control type="image"><width>40</width><height>80</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>special://skin/extras/icons/ethernet.png</texture>
+                    <colordiffuse>$PARAM[textcolor]</colordiffuse>
+                    <visible>String.IsEqual(Window(Home).Property(NetType),ethernet)</visible></control>
+                <control type="image"><width>40</width><height>80</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>special://skin/extras/icons/plug-circle-xmark.png</texture>
+                    <colordiffuse>$PARAM[textcolor]</colordiffuse>
+                    <visible>String.IsEqual(Window(Home).Property(NetType),down)</visible></control>
             </control>'''
 s=s[:start]+gl+s[end:]
 tv='<value condition="!Skin.HasSetting(Header.DisableWeather)">$INFO[Weather.Temperature]</value>\n    </variable>'
@@ -318,6 +343,32 @@ put(){ # put <src> <dest-dir>   (skipped if the add-on isn't installed yet)
 SKIN="$KODI_ADDONS/skin.arctic.fuse.3/1080i"
 for f in Custom_1198_Dialog_Startup.xml Custom_1101_Hub.xml Custom_1102_Hub.xml Custom_1103_Hub.xml Includes_LiveTV.xml Includes_Hubs.xml DialogNotification.xml; do put skin/$f "$SKIN"; done
 put skin/boxy_toast_pill.png "$KODI_ADDONS/skin.arctic.fuse.3/media/common"   # single-image toast pill
+put skin/boxy_wifi.png "$KODI_ADDONS/skin.arctic.fuse.3/extras/icons"   # header network icon
+mkdir -p "$KODI_ADDONS/skin.arctic.fuse.3/extras/icons" && cp -f "$PATCHES"/skin/battery/boxy_batt_*.png "$KODI_ADDONS/skin.arctic.fuse.3/extras/icons/"   # Apple-style battery
+cp -f "$PATCHES"/skin/icons/boxy_*.png "$KODI_ADDONS/skin.arctic.fuse.3/extras/icons/"   # header glyphs cropped to their drawing
+# header right side: replace the grouplist with the final layout (battery / chip / time / network)
+[ -f "$FUR2" ] || FUR2="$KODI_ADDONS/skin.arctic.fuse.3/1080i/Includes_Furniture.xml"
+[ -f "$FUR2" ] && python3 - "$FUR2" "$PATCHES/skin/header_block.xml" <<'PY'
+import sys
+p, b = sys.argv[1], sys.argv[2]
+s = open(p).read(); blk = open(b).read().rstrip("
+")
+a = s.index('<include name="Furniture_Header_Right">')
+g0 = s.index('            <control type="grouplist">', a)
+g1 = s.index('
+        </control>
+    </include>', g0)
+open(p, "w").write(s[:g0] + blk + s[g1:])
+PY
+FUR2="$KODI_ADDONS/skin.arctic.fuse.3/1080i/Includes_Furniture.xml"
+[ -f "$FUR2" ] && python3 - "$FUR2" <<'PY'
+import sys
+p=sys.argv[1]; s=open(p).read()
+old='<control type="image"><width>34</width><height>80</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>special://skin/extras/icons/microchip.png</texture>'
+open(p,'w').write(s.replace(old, old.replace('<width>34</width>','<width>46</width>')))
+PY
 put skin/ytsearch.py "$KODI_ADDONS/skin.arctic.fuse.3"   # YouTube tab click: search prompt
 SPOT="$KODI_ADDONS/plugin.audio.spotify/resources/lib"
 for f in boxy_snapshot.py plugin_content.py spotty_auth.py main_service.py; do put spotify/$f "$SPOT"; done
@@ -380,6 +431,12 @@ SystemMaxUse=50M
 install -m 755 "$PATCHES/backup/boxy-backup.sh" /usr/local/bin/boxy-backup.sh
 install -m 644 "$PATCHES/backup/boxy-backup.service" "$PATCHES/backup/boxy-backup.timer" /etc/systemd/system/
 systemctl daemon-reload; systemctl enable boxy-backup.timer
+
+# Wi-Fi watchdog: NetworkManager can leave Wi-Fi "failed" for days after a router re-key.
+# Reconnects after 3 min, restarts NetworkManager after 6, reboots after ~12 (max once / 6 h).
+install -m 755 "$PATCHES/network/boxy-netwatch.sh" /usr/local/bin/boxy-netwatch.sh
+install -m 644 "$PATCHES/network/boxy-netwatch.service" "$PATCHES/network/boxy-netwatch.timer" /etc/systemd/system/
+systemctl daemon-reload; systemctl enable boxy-netwatch.timer
 
 # Boot splash: paint the boxy image on the framebuffer before systemd starts
 # anything, hide the text console (no kernel log, no cursor).

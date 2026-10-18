@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- boxy: toast = white pill, black text, right-aligned exactly over the header status
-     bar (wide enough to cover it completely) and above every other window -->
+<!-- boxy: toast = white pill, black text, right-aligned over the header status bar, left edge
+     just before the battery icon (the rounded end still covers the charging bolt) and above every other window -->
 <window>
     <zorder>2000</zorder>
     <animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
@@ -9,17 +9,30 @@
         <control type="group">
             <right>80</right>
             <top>46</top>
-            <width>580</width>
+            <width>522</width>
             <height>68</height>
             <!-- one pill image (two overlapping/adjacent pieces showed a seam while fading) -->
             <control type="image">
-                <left>0</left><top>0</top><width>580</width><height>68</height>
+                <left>0</left><top>0</top><width>522</width><height>68</height>
                 <texture border="34">common/boxy_toast_pill.png</texture>
             </control>
             <control type="image" id="400">
                 <left>24</left><top>16</top><width>36</width><height>36</height>
                 <aspectratio>keep</aspectratio>
                 <colordiffuse>FF000000</colordiffuse>
+                <visible>!String.Contains(Control.GetLabel(400),boxy_batt_)</visible>
+            </control>
+            <!-- battery toasts: same icon as the header (coloured fill + outline, outline in black here) -->
+            <control type="group">
+                <left>18</left><top>0</top><width>46</width><height>68</height>
+                <visible>String.Contains(Control.GetLabel(400),boxy_batt_)</visible>
+                <control type="image"><left>0</left><top>0</top><width>46</width><height>68</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>$INFO[Control.GetLabel(400)]</texture></control>
+                <control type="image"><left>0</left><top>0</top><width>46</width><height>68</height>
+                    <aspectratio aligny="center">keep</aspectratio>
+                    <texture>special://skin/extras/icons/boxy_batt_outline.png</texture>
+                    <colordiffuse>FF000000</colordiffuse></control>
             </control>
             <control type="label">
                 <left>74</left>
@@ -33,9 +46,9 @@
             </control>
             <!-- message centred in the white space right of the title -->
             <control type="label">
-                <left>234</left>
+                <left>228</left>
                 <top>0</top>
-                <width>312</width>
+                <width>262</width>
                 <height>68</height>
                 <align>center</align>
                 <aligny>center</aligny>
