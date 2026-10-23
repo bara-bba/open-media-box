@@ -1,0 +1,8 @@
+[Unit]
+Description=Build Kodi's IPTV playlist (Dispatcharr + direct-source overrides)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/bin/boxy-iptv-m3u.py

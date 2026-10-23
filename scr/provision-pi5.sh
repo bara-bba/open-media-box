@@ -377,6 +377,7 @@ YT="$KODI_ADDONS/plugin.video.youtube/resources"
 put youtube/next_page_item.py "$YT/lib/youtube_plugin/kodion/items"
 put youtube/next_page.png "$YT/media"
 put youtube/function_cache.py "$YT/lib/youtube_plugin/kodion/sql_store"
+put youtube/provider.py "$YT/lib/youtube_plugin/youtube"   # never erase the login on a failed refresh
 
 # Hub rows: IPTV (slot 1101) and YouTube recommendations only (slot 1102)
 NODES="$KODI_USERDATA/addon_data/script.skinvariables/nodes/skin.arctic.fuse.3"
@@ -426,7 +427,7 @@ Storage=persistent
 SystemMaxUse=50M
 ' > /etc/systemd/journald.conf.d/boxy.conf
 
-# Weekly backup of logins + settings to the NAS over NFS (192.168.1.61:/mnt/main/backups/boxy,
+# Weekly backup of logins + settings to the NAS over NFS (192.168.42.61:/mnt/main/backups/boxy,
 # exported only to boxy, maproot -> boxy-backup, mode 750; override with BOXY_BACKUP_NAS),
 # falling back to /var/backups/boxy. Restore = untar -C / and restart Kodi.
 install -m 755 "$PATCHES/backup/boxy-backup.sh" /usr/local/bin/boxy-backup.sh
@@ -438,6 +439,24 @@ systemctl daemon-reload; systemctl enable boxy-backup.timer
 install -m 755 "$PATCHES/network/boxy-netwatch.sh" /usr/local/bin/boxy-netwatch.sh
 install -m 644 "$PATCHES/network/boxy-netwatch.service" "$PATCHES/network/boxy-netwatch.timer" /etc/systemd/system/
 systemctl daemon-reload; systemctl enable boxy-netwatch.timer
+
+# IPTV playlist for Kodi = Dispatcharr's, with per-channel direct-source overrides
+# (/etc/boxy/iptv-overrides.conf; La7 breaks in Dispatcharr's remux at ad breaks).
+# Rebuilt at boot + hourly into pvr.iptvsimple/boxy.m3u, which iptvsimple reads as a local file.
+install -m 755 "$PATCHES/iptv/boxy-iptv-m3u.py" /usr/local/bin/boxy-iptv-m3u.py
+[ -f /etc/boxy/iptv-overrides.conf ] || install -D -m 644 "$PATCHES/iptv/iptv-overrides.conf" /etc/boxy/iptv-overrides.conf
+install -m 644 "$PATCHES/iptv/boxy-iptv-m3u.service" "$PATCHES/iptv/boxy-iptv-m3u.timer" /etc/systemd/system/
+systemctl daemon-reload; systemctl enable boxy-iptv-m3u.timer
+python3 /usr/local/bin/boxy-iptv-m3u.py || true
+IPS="$KODI_USERDATA/addon_data/pvr.iptvsimple/instance-settings-1.xml"
+[ -f "$IPS" ] && python3 - "$IPS" <<'PY'
+import re, sys
+p = sys.argv[1]; s = open(p).read()
+s = re.sub(r'<setting id="m3uPathType"[^>]*>[^<]*</setting>', '<setting id="m3uPathType">0</setting>', s)
+s = re.sub(r'<setting id="m3uPath"[^>]*(/>|>[^<]*</setting>)',
+           '<setting id="m3uPath">/home/barbara/.kodi/userdata/addon_data/pvr.iptvsimple/boxy.m3u</setting>', s)
+open(p, "w").write(s)
+PY
 
 # Boot splash: paint the boxy image on the framebuffer before systemd starts
 # anything, hide the text console (no kernel log, no cursor).

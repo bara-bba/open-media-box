@@ -1,12 +1,12 @@
 #!/bin/sh
 # Weekly snapshot of boxy's logins + settings (Spotify pairing, YouTube tokens,
 # Kodi/skin/add-on settings). Goes to the NAS over NFS
-# (192.168.1.61:/mnt/main/backups/boxy, exported only to boxy, maproot -> boxy-backup,
+# (192.168.42.61:/mnt/main/backups/boxy, exported only to boxy, maproot -> boxy-backup,
 # mode 750); falls back to /var/backups/boxy on the SD card if the NAS is unreachable.
 # Keeps the newest $KEEP archives at the destination.
 set -eu
 umask 027                                   # archives readable by owner/group only
-NAS="${BOXY_BACKUP_NAS:-192.168.1.61:/mnt/main/backups/boxy}"
+NAS="${BOXY_BACKUP_NAS:-192.168.42.61:/mnt/main/backups/boxy}"
 MNT=/mnt/boxy-nas
 LOCAL=/var/backups/boxy
 KEEP=6

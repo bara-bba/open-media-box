@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh Kodi's IPTV playlist hourly
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target
